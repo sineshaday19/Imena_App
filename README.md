@@ -191,7 +191,7 @@ The frontend is a Vite + React + TypeScript application. Source code lives under
 
 **pages/**
 
-- Route-level components: `Landing` (marketing-style hero and feature highlights with links to login by role), `Login` (login form and role selection via query param), `Rider` and `RiderDashboard` (rider dashboard: actions such as record income, submit contribution, view reports), `Admin` and `AdminDashboard` (admin dashboard: verify contributions, cooperative income, reports). `Rider` and `Admin` are thin wrappers that render the corresponding dashboard component.
+- Route-level components: `Landing` (marketing-style hero and feature highlights with links to login by role), `Login` (login form and role selection via query param), `Rider` and `RiderDashboard` (rider dashboard: actions such as record income, submit contribution, view reports), `Admin` and `AdminDashboard` (admin dashboard: verify contributions, cooperative income, reports). `Rider` and `Admin` are thin wrappers that render the corresponding dashboard component. A profile page shall be added later
 
 **i18n/**
 
