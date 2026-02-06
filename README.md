@@ -206,7 +206,3 @@ The frontend is a Vite + React + TypeScript application. Source code lives under
 - `vite-env.d.ts` - TypeScript declarations for Vite. The project uses the `@/` path alias (defined in `vite.config.ts`) pointing to `src/`.
 
 There are no dedicated `hooks/` or `services/` folders in the current layout; shared logic and API calls can be added in components, custom hooks under `src/`, or a future `services/` directory when integrating with the backend.
-
-
-
-This document describes the project as implemented and is intended for use in a capstone or final project submission.
