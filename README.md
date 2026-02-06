@@ -114,7 +114,30 @@ The frontend is a React 18 application built with Vite, TypeScript, Tailwind CSS
 
   The app is typically available at `http://localhost:5173`. Configure the backend `CORS_ALLOWED_ORIGINS` to include this origin so the frontend can call the API when integrated.
 
----
+
+
+## 3. App interfaces
+
+
+
+  
+<img width="380" height="731" alt="Screenshot (1056)" src="https://github.com/user-attachments/assets/bae9795e-34c2-4c5d-87b9-1033e4601aec" />
+
+
+<img width="357" height="687" alt="Screenshot (1064)" src="https://github.com/user-attachments/assets/ff0a8415-2eca-4d5d-9736-5027c0f4c35b" />
+
+
+
+<img width="373" height="718" alt="Screenshot (1065)" src="https://github.com/user-attachments/assets/309edec6-1712-4c36-9cad-ab0213c34ea3" />
+
+
+
+<img width="368" height="708" alt="Screenshot (1066)" src="https://github.com/user-attachments/assets/57bb5a4a-0660-48ef-ad1f-b764b57c22b5" />
+
+
+
+<img width="401" height="793" alt="Screenshot (1067)" src="https://github.com/user-attachments/assets/6465af38-b968-4f25-b5a0-bdf5447ceb40" />
+
 
 ## 3. Deployment Plan
 
