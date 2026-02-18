@@ -8,7 +8,7 @@ Project documentation for the Imena cooperative management application.
 
 ### What the Application Does
 
-Imena is a web application for managing cooperative income and contributions. It provides a single place for riders (cooperative members) and cooperative administrators to track daily income, submit and verify contributions, and view reports. The system supports two distinct roles with role-specific dashboards and API visibility.
+Imena is a mobile application for managing cooperatives income and contributions. It provides a single place for riders (cooperative members) and cooperative administrators to track daily income, submit and verify contributions, and view reports. The system supports two distinct roles with role-specific dashboards and API visibility.
 
 ### Target Users
 
