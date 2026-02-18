@@ -4,6 +4,12 @@ Project documentation for the Imena cooperatives management application.
 
 ---
 
+
+https://github.com/user-attachments/assets/15d2c7a0-e2ef-45d5-9edf-ffeb043e3337
+
+
+
+
 ## 1. Project Description
 
 ### What the Application Does
