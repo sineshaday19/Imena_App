@@ -45,7 +45,7 @@ The backend is a Django 5 project using Django REST Framework, JWT authenticatio
 
 **Virtual environment**
 
-- Create and activate a virtual environment in the project root or inside ackend/:
+- Create and activate a virtual environment in the project root or inside `backend/`:
 
 
 
@@ -79,7 +79,7 @@ The backend is a Django 5 project using Django REST Framework, JWT authenticatio
   - `SECRET_KEY` : Django secret key.
   - `DEBUG` : `1` or `0` for development/production.
   - `DATABASE_URL` : PostgreSQL URL (e.g. `postgres://user:password@localhost:5432/imena_db`). If unset, the app falls back to SQLite.
-  - `CORS_ALLOWED_ORIGINS` : Allowed frontend origin(s), e.g. `http://localhost:5173` for the Vite dev server.
+  - `CORS_ALLOWED_ORIGINS` : Allowed frontend origin(s), e.g. `http://localhost:5173,http://127.0.0.1:5173`. If unset, the app defaults to these for local development.
 - Optional: JWT lifetimes and other options as shown in `.env.example`.
 
 **Migrations and development server**
@@ -173,14 +173,14 @@ The backend follows a Django project layout with a single top-level configuratio
 
 - Django project package: `__init__.py` loads settings.
 - `settings/base.py` : Single settings module: reads from environment (and optional `.env`), configures database (PostgreSQL from `DATABASE_URL` or SQLite fallback), installed apps, middleware, DRF with JWT and session auth, CORS from `CORS_ALLOWED_ORIGINS`, and `AUTH_USER_MODEL` pointing to `apps.users.User`.
-- `urls.py` : Root URLconf: mounts JWT token views at `/api/token/` and `/api/token/refresh/`, and includes URL configs from `apps.cooperatives`, `apps.income`, `apps.contributions`, and `apps.core`.
+- `urls.py` : Root URLconf: mounts JWT token views at `/api/token/` and `/api/token/refresh/`, and includes URL configs from `apps.users`, `apps.cooperatives`, `apps.income`, `apps.contributions`, and `apps.core`.
 - `wsgi.py` / `asgi.py` : WSGI/ASGI entry points for deployment.
 
 **apps/**
 
 - **core** : Shared API and permissions: report endpoints (e.g. income and contribution summaries), and permission classes used across apps (e.g. rider vs cooperative admin). URLs are mounted under `api/`.
 - **users** : Custom user model (e.g. with role such as rider/cooperative admin), migrations, and admin registration. No API routes here; users are referenced by other apps and authenticated via JWT.
-- **cooperatives** : Cooperative model and read-only API (list/retrieve) for cooperatives, with visibility filtered by role (riders see their cooperative; admins see cooperatives they manage). URLs under `api/`.
+- **cooperatives** : Cooperative model and API: list, retrieve, create (admins only; creator is added as admin). Public endpoint `GET /api/cooperatives/signup_choices/` returns cooperatives for the signup form. URLs under `api/`.
 - **income** : Income record model and API: list, retrieve, and create (riders create for themselves; visibility by rider or cooperative). URLs under `api/`.
 - **contributions** : Contribution model (e.g. status: pending/verified) and API: list, retrieve, create (riders), and a custom action for admins to verify pending contributions. URLs under `api/`.
 - **members** / **rides** : Placeholder packages (e.g. `__init__.py` only); no models or views in the current setup.
@@ -198,12 +198,12 @@ The frontend is a Vite + React + TypeScript application. Source code lives under
 
 **components/**
 
-- Reusable UI and layout: `AuthProvider` (auth state and mock login for development), `ProtectedRoute` (redirects unauthenticated users to login and authenticated users away from login to their dashboard), `DashboardShell` (shared layout and dynamic background for rider/admin dashboards), `Logo`, `LanguageToggle` (English/Kinyarwanda), and `Icons` (inline SVGs for dashboards).
+- Reusable UI and layout: `CenteredLayout` (shared layout for forms and dashboards), and inline icons. Auth state is provided by `AuthContext` (in `contexts/`).
 - `ui/` : shadcn-style components: `button`, `card`, `input`, `label` (and any others added under `components/ui/`).
 
 **pages/**
 
-- Route-level components: `Landing` (marketing-style hero and feature highlights with links to login by role), `Login` (login form and role selection via query param), `Rider` and `RiderDashboard` (rider dashboard: actions such as record income, submit contribution, view reports), `Admin` and `AdminDashboard` (admin dashboard: verify contributions, cooperative income, reports). `Rider` and `Admin` are thin wrappers that render the corresponding dashboard component.
+- Route-level components: `Landing` (hero and links to login/signup), `Login` (JWT login, redirect by role), `SignUp` (registration; riders select cooperative; admins create cooperatives via dashboard), `RiderDashboard` (quick actions: add income, submit contribution; summary; logout), `AddIncome` (POST income to backend), `SubmitContribution` (POST contribution to backend), `AdminDashboard` (overview, add cooperative, recent contributions).
 
 **i18n/**
 
@@ -213,11 +213,14 @@ The frontend is a Vite + React + TypeScript application. Source code lives under
 
 - `index.css` : Global styles and Tailwind directives; may include custom utility classes (e.g. for dynamic backgrounds and dashboard layout). Tailwind is configured via `tailwind.config.js` at the frontend root; theme and shadcn-related variables are typically defined in this CSS file.
 
+**contexts/** and **lib/**
+
+- `AuthContext` (in `contexts/`): JWT login/logout, user state, token storage.
+- `api.ts` (in `lib/`): apiFetch with JWT, getCooperatives, getCooperativesForSignup, createCooperative. Set `VITE_API_URL` if the backend is not at `http://127.0.0.1:8000`.
+
 **Other**
 
 - `vite-env.d.ts` : TypeScript declarations for Vite. The project uses the `@/` path alias (defined in `vite.config.ts`) pointing to `src/`.
-
-There are no dedicated `hooks/` or `services/` folders in the current layout; shared logic and API calls can be added in components, custom hooks under `src/`, or a future `services/` directory when integrating with the backend.
 
 ---
 
