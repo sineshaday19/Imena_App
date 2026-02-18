@@ -1,6 +1,6 @@
 # Imena
 
-Project documentation for the Imena cooperative management application.
+Project documentation for the Imena cooperatives management application.
 
 ---
 
