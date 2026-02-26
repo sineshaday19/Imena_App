@@ -36,6 +36,7 @@ class CooperativeMembership(models.Model):
         on_delete=models.CASCADE,
         related_name="members",
     )
+    is_verified = models.BooleanField(default=False)
 
     class Meta:
         db_table = "cooperatives_membership"

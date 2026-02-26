@@ -23,12 +23,13 @@ def register(request):
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 def me(request):
-    """Return current user id, email, and role."""
+    """Return current user id, email, phone_number, and role."""
     user: User = request.user
     return Response(
         {
             "id": user.id,
-            "email": user.email,
+            "email": user.email or "",
+            "phone_number": user.phone_number,
             "role": user.role,
         }
     )

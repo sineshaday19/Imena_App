@@ -34,6 +34,8 @@ export default function SignUp() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [role, setRole] = useState<Role>('rider')
   const [cooperativeId, setCooperativeId] = useState<string>('')
+  const [adminCooperativesIds, setAdminCooperativesIds] = useState<number[]>([])
+  const [inviteCode, setInviteCode] = useState('')
   const [cooperatives, setCooperatives] = useState<Cooperative[]>([])
   const [coopsLoading, setCoopsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -52,8 +54,14 @@ export default function SignUp() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    if (!email.trim()) {
+    const hasEmail = !!email.trim()
+    const hasPhone = !!phone.trim()
+    if (role === 'administrator' && !hasEmail) {
       setError(t('signup.errors.emailRequired', 'Email is required'))
+      return
+    }
+    if (!hasPhone) {
+      setError(t('signup.errors.phoneRequired', 'Phone number is required'))
       return
     }
     if (password.length < 8) {
@@ -68,17 +76,27 @@ export default function SignUp() {
       setError(t('signup.errors.cooperativeRequired', 'Please select a cooperative'))
       return
     }
+    if (role === 'administrator' && adminCooperativesIds.length === 0) {
+      setError(t('signup.errors.cooperativesRequired', 'Select at least one cooperative to administer.'))
+      return
+    }
+    if (role === 'administrator' && !inviteCode.trim()) {
+      setError(t('signup.errors.inviteCodeRequired', 'Invite code is required for administrators'))
+      return
+    }
     setSubmitting(true)
     try {
       await apiFetch('/api/users/register/', {
         method: 'POST',
         body: JSON.stringify({
-          email: email.trim(),
+          email: email.trim() || undefined,
+          phone_number: phone.trim() || undefined,
           password,
           confirm_password: confirmPassword,
           full_name: fullName.trim(),
           role,
           ...(role === 'rider' && cooperativeId ? { cooperative_id: parseInt(cooperativeId, 10) } : {}),
+          ...(role === 'administrator' ? { invite_code: inviteCode.trim(), cooperatives: adminCooperativesIds } : {}),
         }),
       })
       navigate('/login', { state: { message: t('signup.successMessage', 'Account created! You can now log in.') } })
@@ -91,18 +109,18 @@ export default function SignUp() {
   }
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
+    <div className="relative min-h-screen flex flex-col items-center overflow-y-auto py-6 sm:py-8">
       {/* Background image */}
       <img
         src="/woman-rider.png"
         alt=""
-        className="absolute inset-0 w-full h-full object-cover blur-md scale-110"
+        className="fixed inset-0 w-full h-full object-cover blur-md scale-110 -z-10"
       />
       {/* Dark overlay */}
-      <div className="absolute inset-0 bg-black/40" aria-hidden />
+      <div className="fixed inset-0 bg-black/40 -z-10" aria-hidden />
 
-      {/* Card – 390px mobile width */}
-      <div className="relative z-10 w-full max-w-mobile bg-white rounded-2xl shadow-soft p-8 mx-4 max-h-[90vh] overflow-y-auto">
+      {/* Card — full height on mobile from top, centered on tablet+ */}
+      <div className="relative z-10 w-full sm:max-w-md bg-white sm:rounded-2xl shadow-soft p-6 sm:p-8 mx-0 sm:mx-4 my-0 sm:my-auto sm:max-h-[90vh] overflow-y-auto flex flex-col min-h-0">
         <header className="relative flex items-center justify-between px-0 py-0 mb-4 -mt-1">
           <Link
             to="/"
@@ -125,7 +143,7 @@ export default function SignUp() {
           </button>
         </header>
 
-        <div className="p-6 overflow-y-auto">
+        <div className="px-0 sm:px-2 pt-2">
           <h2 className="text-2xl font-bold text-gray-900">
             {t('signup.appName')}
           </h2>
@@ -155,13 +173,13 @@ export default function SignUp() {
             </div>
             <div>
               <label htmlFor="email" className="sr-only">
-                {t('signup.email')}
+                {role === 'rider' ? t('signup.emailOptional') : t('signup.email')}
               </label>
               <input
                 id="email"
                 type="email"
                 autoComplete="email"
-                placeholder={t('signup.emailPlaceholder')}
+                placeholder={role === 'rider' ? t('signup.emailPlaceholderOptional') : t('signup.emailPlaceholder')}
                 className={inputClass}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -189,7 +207,11 @@ export default function SignUp() {
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => setRole('rider')}
+                  onClick={() => {
+                    setRole('rider')
+                    setAdminCooperativesIds([])
+                    setInviteCode('')
+                  }}
                   className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium border-2 transition-colors ${
                     role === 'rider'
                       ? 'border-[#0F9D8A] bg-[#0F9D8A]/10 text-[#0F9D8A]'
@@ -200,7 +222,10 @@ export default function SignUp() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setRole('administrator')}
+                  onClick={() => {
+                    setRole('administrator')
+                    setCooperativeId('')
+                  }}
                   className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium border-2 transition-colors ${
                     role === 'administrator'
                       ? 'border-[#0F9D8A] bg-[#0F9D8A]/10 text-[#0F9D8A]'
@@ -211,6 +236,55 @@ export default function SignUp() {
                 </button>
               </div>
             </div>
+
+            {role === 'administrator' && (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    {t('signup.adminCooperativesLabel')}
+                  </label>
+                  {coopsLoading ? (
+                    <p className="text-sm text-gray-400">{t('signup.loadingCooperatives', 'Loading...')}</p>
+                  ) : cooperatives.length === 0 ? (
+                    <p className="text-sm text-amber-600">{t('signup.noCooperatives')}</p>
+                  ) : (
+                    <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-xl p-3 space-y-2 bg-gray-50/50">
+                      {cooperatives.map((c) => (
+                        <label key={c.id} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={adminCooperativesIds.includes(c.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setAdminCooperativesIds((prev) => [...prev, c.id])
+                              } else {
+                                setAdminCooperativesIds((prev) => prev.filter((id) => id !== c.id))
+                              }
+                            }}
+                            className="rounded border-gray-300 text-[#0F9D8A] focus:ring-[#0F9D8A]"
+                          />
+                          <span className="text-sm text-gray-900">{c.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label htmlFor="inviteCode" className="block text-sm font-medium text-gray-700 mb-1">
+                    {t('signup.inviteCode')}
+                  </label>
+                  <input
+                    id="inviteCode"
+                    type="password"
+                    autoComplete="off"
+                    placeholder={t('signup.inviteCodePlaceholder')}
+                    className={inputClass}
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
 
             {role === 'rider' && (
               <div>

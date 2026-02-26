@@ -43,8 +43,8 @@ export default function Login() {
       {/* Dark overlay */}
       <div className="absolute inset-0 bg-black/40" aria-hidden />
 
-      {/* Card – 390px mobile width */}
-      <div className="relative z-10 w-full max-w-mobile bg-white rounded-2xl shadow-soft p-8 mx-4 max-h-[90vh] overflow-y-auto">
+      {/* Card — full screen on mobile, centered card on tablet+ */}
+      <div className="relative z-10 w-full sm:max-w-md bg-white sm:rounded-2xl shadow-soft p-6 sm:p-8 mx-0 sm:mx-4 min-h-screen sm:min-h-0 sm:max-h-[90vh] overflow-y-auto flex flex-col justify-center">
         <header className="relative flex items-center justify-between px-0 py-0 mb-4 -mt-1">
           <Link
             to="/"
@@ -67,7 +67,7 @@ export default function Login() {
           </button>
         </header>
 
-        <div className="p-6 overflow-y-auto">
+        <div className="px-0 sm:px-2 pt-2">
           <h2 className="text-2xl font-bold text-gray-900">
             {t('login.appName')}
           </h2>
@@ -85,7 +85,7 @@ export default function Login() {
               try {
                 const user = await login(email.trim(), password)
                 const isAdmin = user.role === 'COOPERATIVE_ADMIN'
-                navigate(isAdmin ? '/admin' : '/rider', { state: { email: user.email } })
+                navigate(isAdmin ? '/admin' : '/rider', { state: { email: user.email || user.phone_number } })
               } catch (err) {
                 setError(err instanceof Error ? err.message : 'Login failed')
               } finally {
@@ -95,13 +95,13 @@ export default function Login() {
           >
             <div>
               <label htmlFor="email" className="sr-only">
-                {t('login.email')}
+                {t('login.emailOrPhone')}
               </label>
               <input
                 id="email"
-                type="email"
-                autoComplete="email"
-                placeholder={t('login.emailPlaceholder')}
+                type="text"
+                autoComplete="username"
+                placeholder={t('login.emailOrPhonePlaceholder')}
                 className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 focus:border-[#0F9D8A] focus:ring-2 focus:ring-[#0F9D8A]/20 focus:outline-none text-gray-900 placeholder-gray-400 transition-colors"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

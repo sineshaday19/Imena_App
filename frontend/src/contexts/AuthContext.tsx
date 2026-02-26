@@ -54,19 +54,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (username: string, password: string): Promise<UserMe> => {
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'}/api/token/`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password }),
-        }
-      )
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}))
-        throw new Error(j.detail || `Login failed: ${res.status}`)
-      }
-      const data: TokenResponse = await res.json()
+      const data = await apiFetch<TokenResponse>('/api/token/', {
+        method: 'POST',
+        body: JSON.stringify({ username, password }),
+      })
       setTokens(data.access, data.refresh)
       const me = await apiFetch<UserMe>('/api/users/me/')
       setUser(me)

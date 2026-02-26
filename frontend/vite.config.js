@@ -1,11 +1,21 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-var vite_1 = require("vite");
-var plugin_react_1 = require("@vitejs/plugin-react");
-var path_1 = require("path");
-exports.default = (0, vite_1.defineConfig)({
-    plugins: [(0, plugin_react_1.default)()],
-    resolve: {
-        alias: { '@': path_1.default.resolve(__dirname, './src') },
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+export default defineConfig({
+  plugins: [react()],
+  resolve: {
+    alias: { '@': path.resolve(__dirname, './src') },
+  },
+  optimizeDeps: {
+    exclude: ['canvg', 'html2canvas', 'dompurify'],
+  },
+  build: {
+    rollupOptions: {
+      external: ['canvg'],
     },
-});
+  },
+})

@@ -14,7 +14,7 @@ except ImportError:
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "change-me-in-production")
+SECRET_KEY = os.environ["SECRET_KEY"]
 
 DEBUG = os.environ.get("DEBUG", "0").strip().lower() in ("1", "true", "yes")
 
@@ -125,6 +125,5 @@ REST_FRAMEWORK = {
 # CORS: set CORS_ALLOWED_ORIGINS in env (e.g. http://localhost:5173,http://127.0.0.1:5173)
 _cors = os.environ.get("CORS_ALLOWED_ORIGINS", "")
 CORS_ALLOWED_ORIGINS = [s.strip() for s in _cors.split(",") if s.strip()]
-# Dev fallback: allow Vite frontend when CORS not configured
-if not CORS_ALLOWED_ORIGINS:
-    CORS_ALLOWED_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+if not CORS_ALLOWED_ORIGINS and not DEBUG:
+    raise RuntimeError("CORS_ALLOWED_ORIGINS must be set in production (DEBUG=False)")

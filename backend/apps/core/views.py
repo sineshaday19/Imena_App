@@ -1,5 +1,5 @@
 """Read-only report endpoints. Aggregations at DB level; visibility by rider/admin."""
-from django.db.models import Case, Count, DecimalField, Q, Sum, Value, When
+from django.db.models import Case, Count, DecimalField, Sum, Value, When
 
 from rest_framework import permissions, viewsets
 from rest_framework.decorators import action
@@ -10,15 +10,23 @@ from apps.income.models import IncomeRecord
 
 
 def _income_queryset(user):
-    return IncomeRecord.objects.filter(
-        Q(rider=user) | Q(cooperative__admins=user)
-    ).distinct()
+    if user.is_superuser:
+        return IncomeRecord.objects.all()
+    if user.is_cooperative_admin:
+        return IncomeRecord.objects.filter(cooperative__admins=user).distinct()
+    if user.is_rider:
+        return IncomeRecord.objects.filter(rider=user)
+    return IncomeRecord.objects.none()
 
 
 def _contribution_queryset(user):
-    return Contribution.objects.filter(
-        Q(rider=user) | Q(cooperative__admins=user)
-    ).distinct()
+    if user.is_superuser:
+        return Contribution.objects.all()
+    if user.is_cooperative_admin:
+        return Contribution.objects.filter(cooperative__admins=user).distinct()
+    if user.is_rider:
+        return Contribution.objects.filter(rider=user)
+    return Contribution.objects.none()
 
 
 class ReportViewSet(viewsets.ViewSet):

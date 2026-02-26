@@ -6,6 +6,7 @@ import RiderDashboard from './pages/RiderDashboard'
 import AddIncome from './pages/AddIncome'
 import SubmitContribution from './pages/SubmitContribution'
 import AdminDashboard from './pages/AdminDashboard'
+import CooperativeMembers from './pages/CooperativeMembers'
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         <Route path="/rider/add-income" element={<AddIncome />} />
         <Route path="/rider/submit-contribution" element={<SubmitContribution />} />
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/cooperative/:id" element={<CooperativeMembers />} />
       </Routes>
     </BrowserRouter>
   )

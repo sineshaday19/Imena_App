@@ -24,9 +24,9 @@ class CooperativeSerializer(serializers.ModelSerializer):
 
     def get_members(self, obj):
         return [
-            {"id": m.user_id, "email": m.user.email}
+            {"id": m.user_id, "email": m.user.email or m.user.phone_number or "", "is_verified": m.is_verified}
             for m in obj.members.select_related("user").all()
         ]
 
     def get_admins(self, obj):
-        return [{"id": u.id, "email": u.email} for u in obj.admins.all()]
+        return [{"id": u.id, "email": u.email or u.phone_number or ""} for u in obj.admins.all()]

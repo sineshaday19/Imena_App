@@ -81,8 +81,7 @@ export default function AddIncome() {
 
   return (
     <CenteredLayout>
-      <div className="w-full max-w-mobile bg-white rounded-2xl shadow-soft overflow-hidden max-h-[90vh] flex flex-col">
-        <header className="relative flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
+      <header className="relative flex items-center justify-between px-4 sm:px-6 py-3 border-b border-gray-100 shrink-0">
           <Link
             to="/rider"
             state={state}
@@ -105,7 +104,7 @@ export default function AddIncome() {
           </button>
         </header>
 
-        <div className="p-6 overflow-y-auto">
+      <div className="flex-1 px-4 sm:px-6 py-6 overflow-y-auto">
           <p className="text-sm text-gray-600 mb-6">
             {t('addIncome.subtitle')}
           </p>
@@ -157,7 +156,6 @@ export default function AddIncome() {
             </button>
           </form>
           )}
-        </div>
       </div>
     </CenteredLayout>
   )

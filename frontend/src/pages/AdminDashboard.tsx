@@ -1,10 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import CenteredLayout from '@/components/CenteredLayout'
+import ProgressChart from '@/components/ProgressChart'
 import { useAuth } from '@/contexts/AuthContext'
-import { createCooperative, getCooperatives, type Cooperative } from '@/lib/api'
+import {
+  createCooperative,
+  getCooperativeDetail,
+  getCooperatives,
+  getTotalIncome,
+  verifyMember,
+  type Cooperative,
+  type CooperativeMember,
+  type CooperativeDetail,
+} from '@/lib/api'
 
+/* ─── Icons ─── */
 function GlobeIcon() {
   return (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -12,7 +23,6 @@ function GlobeIcon() {
     </svg>
   )
 }
-
 function LogoutIcon() {
   return (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -20,69 +30,135 @@ function LogoutIcon() {
     </svg>
   )
 }
-
 function UsersIcon() {
   return (
-    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a4 4 0 00-4-4h-1m-4 6H2v-2a4 4 0 014-4h7m0 0a4 4 0 10-8 0 4 4 0 008 0zm6 2a3 3 0 10-6 0 3 3 0 006 0z" />
-    </svg>
+    <img src="/riders-icon.png" alt="" className="w-9 h-9 object-contain" aria-hidden />
   )
 }
-
 function MoneyIcon() {
   return (
-    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
-    </svg>
+    <img src="/income-icon.png" alt="" className="w-9 h-9 object-contain" aria-hidden />
   )
 }
-
 function ClockIcon() {
   return (
-    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <img src="/unverified-icon.png" alt="" className="w-9 h-9 object-contain" aria-hidden />
+  )
+}
+function PlusIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+    </svg>
+  )
+}
+function ChevronRightIcon() {
+  return (
+    <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    </svg>
+  )
+}
+function CheckIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
     </svg>
   )
 }
 
-type Contribution = {
-  name: string
-  date: string
-  amount: string
-}
+/* ─── Types ─── */
+type FlatMember = CooperativeMember & { cooperativeId: number; cooperativeName: string }
 
-function initials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  const a = parts[0]?.[0] ?? ''
-  const b = parts.length > 1 ? parts[parts.length - 1]?.[0] : ''
-  return (a + b).toUpperCase()
-}
-
-function truncateName(name: string, max = 18) {
-  if (name.length <= max) return name
-  return `${name.slice(0, max - 1)}…`
+function initials(email: string) {
+  return email[0]?.toUpperCase() ?? '?'
 }
 
 const inputClass =
   'w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 focus:border-[#0F9D8A] focus:ring-2 focus:ring-[#0F9D8A]/20 focus:outline-none text-gray-900 placeholder-gray-400'
 
+/* ─── Stat card ─── */
+function StatCard({
+  icon,
+  iconBg,
+  label,
+  value,
+}: {
+  icon: React.ReactNode
+  iconBg: string
+  label: string
+  value: string
+}) {
+  return (
+    <div className="bg-white rounded-xl shadow-soft p-4 flex flex-col justify-between gap-3">
+      <div className={`w-11 h-11 rounded-full ${iconBg} flex items-center justify-center text-white shrink-0`}>
+        {icon}
+      </div>
+      <div>
+        <p className="text-xs text-gray-500">{label}</p>
+        <p className="text-xl font-bold text-gray-900 mt-0.5">{value}</p>
+      </div>
+    </div>
+  )
+}
+
+/* ─── Component ─── */
 export default function AdminDashboard() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { user, logout } = useAuth()
+
   const [cooperatives, setCooperatives] = useState<Cooperative[]>([])
   const [showAddCoop, setShowAddCoop] = useState(false)
   const [newCoopName, setNewCoopName] = useState('')
   const [addError, setAddError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  const loadCooperatives = useCallback(() => {
-    getCooperatives().then(setCooperatives).catch(() => setCooperatives([]))
+  // All members from all cooperatives, flattened for the members list
+  const [allMembers, setAllMembers] = useState<FlatMember[]>([])
+  const [membersLoading, setMembersLoading] = useState(true)
+  const [totalIncome, setTotalIncome] = useState<number | null>(null)
+  // Per-member toggling spinner
+  const [toggling, setToggling] = useState<Record<number, boolean>>({})
+
+  const loadCooperatives = useCallback(async () => {
+    try {
+      const coops = await getCooperatives()
+      setCooperatives(coops)
+      return coops
+    } catch {
+      setCooperatives([])
+      return []
+    }
+  }, [])
+
+  // Load all members from every cooperative in parallel
+  const loadAllMembers = useCallback(async (coops: Cooperative[]) => {
+    if (coops.length === 0) { setAllMembers([]); setMembersLoading(false); return }
+    setMembersLoading(true)
+    try {
+      const details: CooperativeDetail[] = await Promise.all(
+        coops.map((c) => getCooperativeDetail(c.id))
+      )
+      const flat: FlatMember[] = details.flatMap((d) =>
+        d.members.map((m) => ({
+          ...m,
+          cooperativeId: d.id,
+          cooperativeName: d.name,
+        }))
+      )
+      setAllMembers(flat)
+    } catch {
+      setAllMembers([])
+    } finally {
+      setMembersLoading(false)
+    }
   }, [])
 
   useEffect(() => {
-    loadCooperatives()
-  }, [loadCooperatives])
+    loadCooperatives().then(loadAllMembers)
+    getTotalIncome().then(setTotalIncome).catch(() => setTotalIncome(0))
+  }, [loadCooperatives, loadAllMembers])
 
   const handleAddCooperative = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -93,7 +169,8 @@ export default function AdminDashboard() {
       await createCooperative(newCoopName.trim())
       setNewCoopName('')
       setShowAddCoop(false)
-      loadCooperatives()
+      const coops = await loadCooperatives()
+      await loadAllMembers(coops)
     } catch (err) {
       setAddError(err instanceof Error ? err.message : t('admin.addCooperativeError'))
     } finally {
@@ -101,169 +178,191 @@ export default function AdminDashboard() {
     }
   }
 
-  const toggleLanguage = () => {
-    i18n.changeLanguage(i18n.language === 'en' ? 'rw' : 'en')
+  const handleVerify = async (member: FlatMember) => {
+    if (toggling[member.id]) return
+    setToggling((prev) => ({ ...prev, [member.id]: true }))
+    try {
+      const result = await verifyMember(member.cooperativeId, member.id)
+      setAllMembers((prev) =>
+        prev.map((m) =>
+          m.id === member.id ? { ...m, is_verified: result.is_verified } : m
+        )
+      )
+    } catch {
+      // silently ignore
+    } finally {
+      setToggling((prev) => ({ ...prev, [member.id]: false }))
+    }
   }
 
-  const recent: Contribution[] = [
-    { name: 'Aline Mukamana', date: 'Feb 5', amount: '15,000 RWF' },
-    { name: 'Grace Uwase', date: 'Feb 5', amount: '15,000 RWF' },
-    { name: 'Jeannette Uwamahoro', date: 'Feb 4', amount: '15,000 RWF' },
-  ]
+  const toggleLanguage = () => i18n.changeLanguage(i18n.language === 'en' ? 'rw' : 'en')
+
+  const totalRiders = allMembers.length
+  const verifiedCount = allMembers.filter((m) => m.is_verified).length
 
   return (
-    <CenteredLayout>
-      <div className="w-full max-w-mobile bg-white rounded-2xl shadow-soft overflow-hidden max-h-[90vh] flex flex-col">
-        <header className="border-b border-gray-100 px-4 py-4 shrink-0">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <h1 className="text-lg font-semibold text-gray-900">{t('admin.title')}</h1>
-              <p className="text-sm text-gray-500 mt-0.5">{t('admin.subtitle')}</p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={toggleLanguage}
-                className="inline-flex items-center gap-1.5 text-gray-500 hover:text-gray-700 text-sm py-1"
-                aria-label={t('admin.language')}
-              >
-                <GlobeIcon />
-                <span>{t('admin.language')}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => { logout(); navigate('/login') }}
-                className="p-2 text-gray-500 hover:text-gray-700"
-                aria-label={t('admin.logout')}
-              >
-                <LogoutIcon />
-              </button>
-            </div>
+    <CenteredLayout wide>
+      {/* ── Top nav bar ── */}
+      <header className="bg-[#0F9D8A] px-4 sm:px-6 py-4 shrink-0">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold text-white">{t('admin.title')}</h1>
+            <p className="text-sm text-white/70 hidden sm:block">{t('admin.subtitle')}</p>
           </div>
-        </header>
-
-        <main className="flex-1 px-4 py-6 overflow-y-auto">
-        {/* Overview */}
-        <section className="mb-8">
-          <h2 className="text-base font-semibold text-gray-900 mb-3">{t('admin.overview')}</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-white rounded-xl shadow-soft p-4">
-              <div className="w-12 h-12 rounded-full bg-[#0F9D8A] flex items-center justify-center text-white mb-3">
-                <UsersIcon />
-              </div>
-              <p className="text-xs text-gray-500">{t('admin.totalRiders')}</p>
-              <p className="text-xl font-bold text-gray-900 mt-1">45</p>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-soft p-4">
-              <div className="w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center text-white mb-3">
-                <MoneyIcon />
-              </div>
-              <p className="text-xs text-gray-500">{t('admin.totalIncome')}</p>
-              <p className="text-xl font-bold text-gray-900 mt-1">2.9M RWF</p>
-            </div>
-
-            <div className="bg-white rounded-xl shadow-soft p-4 col-span-2">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-500">{t('admin.pending')}</p>
-                  <p className="text-xl font-bold text-gray-900 mt-1">8</p>
-                </div>
-                <div className="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center text-white">
-                  <ClockIcon />
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Cooperatives + Add New */}
-        <section className="mb-8">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-semibold text-gray-900">{t('admin.cooperatives')}</h2>
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
-              onClick={() => { setShowAddCoop(true); setAddError(null); setNewCoopName('') }}
-              className="px-4 py-2 rounded-xl text-sm font-medium text-white bg-[#0F9D8A] hover:bg-[#0d8a7a] transition-colors"
+              onClick={toggleLanguage}
+              className="hidden sm:inline-flex items-center gap-1.5 text-white/80 hover:text-white text-sm py-1 transition-colors"
             >
-              {t('admin.addCooperative')}
+              <GlobeIcon />
+              <span>{t('admin.language')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={toggleLanguage}
+              className="sm:hidden p-2 text-white/80 hover:text-white transition-colors"
+              aria-label="Language"
+            >
+              <GlobeIcon />
+            </button>
+            <button
+              type="button"
+              onClick={() => { logout(); navigate('/login') }}
+              className="p-2 text-white/80 hover:text-white transition-colors"
+              aria-label={t('admin.logout')}
+            >
+              <LogoutIcon />
             </button>
           </div>
-          {showAddCoop && (
-            <form onSubmit={handleAddCooperative} className="mb-4 p-4 bg-gray-50 rounded-xl space-y-3">
-              <div>
-                <label htmlFor="newCoopName" className="block text-sm font-medium text-gray-700 mb-1">
-                  {t('admin.cooperativeName')}
-                </label>
-                <input
-                  id="newCoopName"
-                  type="text"
-                  placeholder={t('admin.cooperativeNamePlaceholder')}
-                  className={inputClass}
-                  value={newCoopName}
-                  onChange={(e) => setNewCoopName(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              {addError && <p className="text-sm text-red-600">{addError}</p>}
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={submitting || !newCoopName.trim()}
-                  className="px-4 py-2 rounded-xl text-sm font-medium text-white bg-[#0F9D8A] hover:bg-[#0d8a7a] disabled:opacity-70 transition-colors"
-                >
-                  {submitting ? '...' : t('admin.addCooperative')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => { setShowAddCoop(false); setAddError(null); setNewCoopName('') }}
-                  className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 bg-white border border-gray-200 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          )}
-          {cooperatives.length > 0 && (
-            <div className="space-y-2">
-              {cooperatives.map((c) => (
-                <div key={c.id} className="p-3 bg-gray-50 rounded-xl text-sm font-medium text-gray-900">
-                  {c.name}
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+        </div>
+      </header>
 
-        {/* Recent Contributions */}
-        <section>
-          <h2 className="text-base font-semibold text-gray-900 mb-3">{t('admin.recentContributions')}</h2>
-          <div className="bg-white rounded-xl shadow-soft divide-y divide-gray-100 overflow-hidden">
-            {recent.map((c) => (
-              <div key={`${c.name}-${c.date}-${c.amount}`} className="p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center font-semibold text-sm shrink-0">
-                  {initials(c.name)}
+      {/* ── Main content ── */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] min-h-full">
+
+          {/* ── Left / main column ── */}
+          <main className="px-4 sm:px-6 py-6 space-y-8 border-b lg:border-b-0 lg:border-r border-gray-100">
+
+            {/* Stats */}
+            <section>
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                {t('admin.overview')}
+              </h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <StatCard
+                  icon={<UsersIcon />}
+                  iconBg=""
+                  label={t('admin.totalRiders')}
+                  value={membersLoading ? '…' : String(totalRiders)}
+                />
+                <StatCard
+                  icon={<MoneyIcon />}
+                  iconBg=""
+                  label={t('admin.totalIncome')}
+                  value={
+                    totalIncome === null
+                      ? '…'
+                      : totalIncome >= 1_000_000
+                      ? `${(totalIncome / 1_000_000).toFixed(1)}M RWF`
+                      : totalIncome >= 1_000
+                      ? `${(totalIncome / 1_000).toFixed(1)}K RWF`
+                      : `${totalIncome} RWF`
+                  }
+                />
+                <div className="col-span-2 sm:col-span-1">
+                  <StatCard
+                    icon={<ClockIcon />}
+                    iconBg=""
+                    label={t('admin.unverified')}
+                    value={membersLoading ? '…' : String(totalRiders - verifiedCount)}
+                  />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-medium text-gray-900 text-sm truncate">{truncateName(c.name)}</p>
-                    <p className="text-xs text-gray-500 shrink-0">{c.date}</p>
-                  </div>
-                  <p className="text-sm text-gray-600 mt-0.5">{c.amount}</p>
-                </div>
-                <button
-                  type="button"
-                  className="shrink-0 px-3 py-2 rounded-xl text-sm font-medium text-white bg-[#0F9D8A] hover:bg-[#0d8a7a] transition-colors"
-                >
-                  {t('admin.verify')}
-                </button>
               </div>
-            ))}
-          </div>
-        </section>
-      </main>
+            </section>
+
+            {/* Members list with verify toggle */}
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+                  {t('admin.recentContributions')}
+                </h2>
+                {!membersLoading && (
+                  <span className="text-xs text-gray-400">
+                    {t('admin.verifiedCount', { verified: verifiedCount, total: totalRiders })}
+                  </span>
+                )}
+              </div>
+
+              {membersLoading ? (
+                <p className="text-sm text-gray-400 py-4">{t('admin.loadingMembers')}</p>
+              ) : allMembers.length === 0 ? (
+                <p className="text-sm text-gray-400 italic py-4">
+                  {t('admin.noRiders')}
+                </p>
+              ) : (
+                <div className="bg-gray-50 rounded-xl divide-y divide-gray-100 overflow-hidden">
+                  {allMembers.map((m) => (
+                    <div key={m.id} className="p-4 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[#0F9D8A]/10 text-[#0F9D8A] flex items-center justify-center font-semibold text-sm shrink-0">
+                        {initials(m.email)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-gray-900 text-sm truncate">{m.email}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{m.cooperativeName}</p>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={toggling[m.id]}
+                        onClick={() => handleVerify(m)}
+                        className={[
+                          'shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors',
+                          m.is_verified
+                            ? 'bg-[#0F9D8A] text-white hover:bg-[#0c8070]'
+                            : 'bg-white border border-gray-300 text-gray-600 hover:border-[#0F9D8A] hover:text-[#0F9D8A]',
+                          toggling[m.id] ? 'opacity-50 cursor-wait' : '',
+                        ].join(' ')}
+                      >
+                        {m.is_verified && <CheckIcon />}
+                        {toggling[m.id] ? '…' : m.is_verified ? t('admin.verified') : t('admin.verify')}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Progress chart */}
+            <ProgressChart />
+          </main>
+
+          {/* ── Right / sidebar: Cooperative Riders ── */}
+          <aside className="px-4 sm:px-6 py-6 space-y-6">
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+              {t('admin.cooperativeRiders')}
+            </h2>
+            {membersLoading ? (
+              <p className="text-sm text-gray-400 py-2">{t('admin.loadingMembers')}</p>
+            ) : allMembers.length === 0 ? (
+              <p className="text-sm text-gray-400 italic py-2">{t('admin.noRiders')}</p>
+            ) : (
+              <div className="space-y-2">
+                {allMembers.map((m) => (
+                  <div
+                    key={`${m.cooperativeId}-${m.id}`}
+                    className="w-full text-left px-4 py-3 bg-gray-50 rounded-xl text-sm font-medium text-gray-900 flex flex-col gap-0.5"
+                  >
+                    <span className="truncate">{m.email || t('admin.noRiders')}</span>
+                    <span className="text-xs text-gray-400">{m.cooperativeName}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </aside>
+
+        </div>
       </div>
     </CenteredLayout>
   )
 }
-

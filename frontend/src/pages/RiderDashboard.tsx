@@ -51,10 +51,13 @@ function WalletIcon() {
   )
 }
 
-function displayNameFromEmail(email: string | undefined): string {
-  if (!email?.trim()) return ''
-  const local = email.split('@')[0]?.trim() ?? ''
-  return local.replace(/[._-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+function displayName(identifier: string | undefined): string {
+  if (!identifier?.trim()) return ''
+  if (identifier.includes('@')) {
+    const local = identifier.split('@')[0]?.trim() ?? ''
+    return local.replace(/[._-]+/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  }
+  return identifier.trim()
 }
 
 export default function RiderDashboard() {
@@ -62,8 +65,8 @@ export default function RiderDashboard() {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuth()
-  const email = (location.state as { email?: string } | null)?.email ?? user?.email
-  const name = displayNameFromEmail(email)
+  const identifier = (location.state as { email?: string } | null)?.email ?? user?.email ?? user?.phone_number ?? ''
+  const name = displayName(identifier)
   const greetingName = name || (i18n.language === 'rw' ? 'Umumotari' : 'Rider')
 
   const toggleLanguage = () => {
@@ -92,8 +95,7 @@ export default function RiderDashboard() {
 
   return (
     <CenteredLayout>
-      <div className="w-full max-w-mobile bg-white rounded-2xl shadow-soft overflow-hidden max-h-[90vh] flex flex-col">
-        <header className="border-b border-gray-100 px-4 py-4 shrink-0">
+      <header className="border-b border-gray-100 px-4 sm:px-6 py-4 shrink-0">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               <h1 className="text-lg font-semibold text-gray-900">
@@ -126,17 +128,17 @@ export default function RiderDashboard() {
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-6 overflow-y-auto">
+      <main className="flex-1 px-4 sm:px-6 py-6 overflow-y-auto">
         {/* Quick Actions */}
         <section className="mb-8">
-          <h2 className="text-base font-semibold text-gray-900 mb-3">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
             {t('rider.quickActions')}
           </h2>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
             <Link
               to="/rider/add-income"
-              state={{ email: email }}
-              className="bg-gray-50 rounded-xl shadow-soft p-4 text-left hover:shadow-md transition-shadow block"
+              state={{ email: identifier }}
+              className="bg-gray-50 rounded-xl shadow-soft p-4 sm:p-5 text-left hover:shadow-md transition-shadow block"
             >
               <div className="w-12 h-12 rounded-full bg-[#0F9D8A] flex items-center justify-center text-white mb-3">
                 <PlusIcon />
@@ -150,8 +152,8 @@ export default function RiderDashboard() {
             </Link>
             <Link
               to="/rider/submit-contribution"
-              state={{ email: email }}
-              className="bg-gray-50 rounded-xl shadow-soft p-4 text-left hover:shadow-md transition-shadow block"
+              state={{ email: identifier }}
+              className="bg-gray-50 rounded-xl shadow-soft p-4 sm:p-5 text-left hover:shadow-md transition-shadow block"
             >
               <div className="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center text-white mb-3">
                 <SendIcon />
@@ -168,28 +170,27 @@ export default function RiderDashboard() {
 
         {/* Your Summary */}
         <section>
-          <h2 className="text-base font-semibold text-gray-900 mb-3">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
             {t('rider.yourSummary')}
           </h2>
-          <div className="space-y-3">
-            <div className="bg-white rounded-xl shadow-soft p-4 flex items-center justify-between">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="bg-white rounded-xl shadow-soft p-4 sm:p-5 flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">{t('rider.todaysIncome')}</p>
-                <p className="text-xl font-bold text-gray-900 mt-1">25,000 RWF</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">25,000 RWF</p>
               </div>
               <TrendUpIcon />
             </div>
-            <div className="bg-white rounded-xl shadow-soft p-4 flex items-center justify-between">
+            <div className="bg-white rounded-xl shadow-soft p-4 sm:p-5 flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500">{t('rider.totalContributions')}</p>
-                <p className="text-xl font-bold text-gray-900 mt-1">150,000 RWF</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">150,000 RWF</p>
               </div>
               <WalletIcon />
             </div>
           </div>
         </section>
       </main>
-      </div>
     </CenteredLayout>
   )
 }

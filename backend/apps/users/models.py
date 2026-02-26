@@ -9,8 +9,8 @@ class User(AbstractUser):
         RIDER = "RIDER", "Rider"
         COOPERATIVE_ADMIN = "COOPERATIVE_ADMIN", "Cooperative admin"
 
-    # Make email a first-class field for this system (still keeping username for now).
-    email = models.EmailField("email address", unique=True)
+    email = models.EmailField("email address", unique=True, null=True, blank=True)
+    phone_number = models.CharField("phone number", max_length=15, unique=True)
 
     role = models.CharField(
         max_length=32,

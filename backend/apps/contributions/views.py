@@ -1,4 +1,3 @@
-from django.db.models import Q
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.mixins import CreateModelMixin
@@ -29,13 +28,15 @@ class ContributionViewSet(CreateModelMixin, viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        return (
-            Contribution.objects.filter(
-                Q(rider=user) | Q(cooperative__admins=user)
-            )
-            .distinct()
-            .select_related("rider", "cooperative")
-        )
+        if user.is_superuser:
+            qs = Contribution.objects.all()
+        elif user.is_cooperative_admin:
+            qs = Contribution.objects.filter(cooperative__admins=user).distinct()
+        elif user.is_rider:
+            qs = Contribution.objects.filter(rider=user)
+        else:
+            qs = Contribution.objects.none()
+        return qs.select_related("rider", "cooperative")
 
     @action(detail=True, methods=["post"], url_path="verify")
     def verify(self, request, pk=None):

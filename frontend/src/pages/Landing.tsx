@@ -19,9 +19,9 @@ export default function Landing() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F7F6] flex flex-col items-center py-6 px-4 sm:py-8">
-      {/* Language selector – top right */}
-      <div className="w-full max-w-mobile flex justify-end pr-0 mb-2">
+    <div className="min-h-screen bg-[#F5F7F6] flex flex-col items-center py-0 sm:py-8 sm:px-4">
+      {/* Language selector – top right (only visible on sm+) */}
+      <div className="hidden sm:flex w-full max-w-sm justify-end mb-2">
         <button
           type="button"
           onClick={toggleLanguage}
@@ -33,10 +33,20 @@ export default function Landing() {
         </button>
       </div>
 
-      {/* Card – 390px mobile width */}
-      <main className="w-full max-w-mobile bg-white rounded-2xl shadow-soft overflow-hidden flex flex-col flex-1">
-        {/* Hero image – rounded top */}
-        <div className="w-full aspect-[4/5] max-h-[320px] bg-gray-200 overflow-hidden rounded-t-2xl flex items-center justify-center">
+      {/* Card — full-screen mobile, centered card on sm+ */}
+      <main className="w-full sm:max-w-sm bg-white sm:rounded-2xl sm:shadow-soft overflow-hidden flex flex-col flex-1 sm:flex-none">
+        {/* Hero image */}
+        <div className="relative w-full aspect-[4/5] sm:aspect-[3/2] max-h-[55vw] sm:max-h-56 bg-gray-200 overflow-hidden sm:rounded-t-2xl flex items-center justify-center">
+          {/* Language toggle overlaid on mobile */}
+          <button
+            type="button"
+            onClick={toggleLanguage}
+            className="sm:hidden absolute top-4 right-4 z-10 inline-flex items-center gap-1.5 bg-white/80 backdrop-blur-sm text-gray-600 hover:text-gray-900 text-sm px-3 py-1.5 rounded-full shadow"
+            aria-label={t('landing.language')}
+          >
+            <GlobeIcon />
+            <span>{t('landing.language')}</span>
+          </button>
           {heroImageError ? (
             <span className="text-gray-400 text-sm">Woman rider</span>
           ) : (
@@ -49,7 +59,7 @@ export default function Landing() {
           )}
         </div>
 
-        <div className="flex flex-col flex-1 px-6 pt-6 pb-8">
+        <div className="flex flex-col flex-1 px-6 pt-6 pb-10 sm:pb-8">
           <h1 className="text-3xl font-bold text-gray-900 text-center">
             {t('landing.appName')}
           </h1>

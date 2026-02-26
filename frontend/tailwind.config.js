@@ -10,9 +10,16 @@ export default {
         },
       },
       borderRadius: { xl: '0.75rem' },
-      maxWidth: { mobile: '390px', card: '430px' },
+      maxWidth: {
+        mobile: '390px',
+        card: '430px',
+        screen: '100%',
+      },
       boxShadow: {
         soft: '0 4px 20px rgba(0,0,0,0.06)',
+      },
+      screens: {
+        xs: '480px',
       },
     },
   },
