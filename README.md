@@ -11,9 +11,6 @@ https://github.com/user-attachments/assets/6ecc8195-1220-4640-86b3-2e4925164cd7
 ---
 
 
-https://github.com/user-attachments/assets/15d2c7a0-e2ef-45d5-9edf-ffeb043e3337
-
-
 
 
 ## 1. Project Description
