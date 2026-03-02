@@ -2,6 +2,12 @@
 
 Project documentation for the Imena cooperatives management application.
 
+
+
+https://github.com/user-attachments/assets/6ecc8195-1220-4640-86b3-2e4925164cd7
+
+
+
 ---
 
 
