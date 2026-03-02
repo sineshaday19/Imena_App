@@ -13,7 +13,7 @@ class IncomeRecordSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = IncomeRecord
-        fields = ["id", "rider", "cooperative", "date", "amount"]
+        fields = ["id", "rider", "cooperative", "date", "amount", "notes"]
         read_only_fields = fields
 
     def get_rider(self, obj):
@@ -28,7 +28,7 @@ class IncomeRecordCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = IncomeRecord
-        fields = ["cooperative", "date", "amount"]
+        fields = ["cooperative", "date", "amount", "notes"]
 
     def validate_cooperative(self, value):
         request = self.context.get("request")
@@ -43,6 +43,10 @@ class IncomeRecordCreateSerializer(serializers.ModelSerializer):
         if membership.cooperative_id != value.id:
             raise serializers.ValidationError(
                 "You can only create income for your own cooperative."
+            )
+        if not membership.is_verified:
+            raise serializers.ValidationError(
+                "Your cooperative membership is not verified yet. Please contact your cooperative administrator."
             )
         return value
 

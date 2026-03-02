@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import CenteredLayout from '@/components/CenteredLayout'
+import { useAuth } from '@/contexts/AuthContext'
 import { apiFetch, getCooperatives, type Cooperative } from '@/lib/api'
 
 function GlobeIcon() {
@@ -29,6 +30,7 @@ function formatDate(date: Date): string {
 
 export default function AddIncome() {
   const { t, i18n } = useTranslation()
+  const { user } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const state = (location.state as { email?: string } | null) ?? {}
@@ -38,6 +40,7 @@ export default function AddIncome() {
   const [error, setError] = useState<string | null>(null)
   const [amount, setAmount] = useState('')
   const [notes, setNotes] = useState('')
+  const isVerifiedMember = user?.is_member_verified ?? true
 
   useEffect(() => {
     getCooperatives()
@@ -52,6 +55,15 @@ export default function AddIncome() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!isVerifiedMember) {
+      setError(
+        t(
+          'addIncome.notVerified',
+          'Your cooperative membership is not verified yet. Please contact your cooperative administrator.'
+        )
+      )
+      return
+    }
     if (!amount.trim()) return
     const coop = cooperatives[0]
     if (!coop) {
@@ -69,6 +81,7 @@ export default function AddIncome() {
           cooperative: coop.id,
           date: formatDate(new Date()),
           amount: amt,
+          ...(notes.trim() ? { notes: notes.trim() } : {}),
         }),
       })
       navigate('/rider', { state })
@@ -105,13 +118,19 @@ export default function AddIncome() {
         </header>
 
       <div className="flex-1 px-4 sm:px-6 py-6 overflow-y-auto">
-          <p className="text-sm text-gray-600 mb-6">
-            {t('addIncome.subtitle')}
+        <p className="text-sm text-gray-600 mb-2">{t('addIncome.subtitle')}</p>
+        {!isVerifiedMember && (
+          <p className="text-sm text-red-600 mb-4">
+            {t(
+              'addIncome.notVerified',
+              'Your cooperative membership is not verified yet. Please contact your cooperative administrator.'
+            )}
           </p>
+        )}
 
-          {loading ? (
-            <p className="text-sm text-gray-500">{t('addIncome.loading', 'Loading...')}</p>
-          ) : (
+        {loading ? (
+          <p className="text-sm text-gray-500">{t('addIncome.loading', 'Loading...')}</p>
+        ) : (
           <form className="space-y-4" onSubmit={handleSubmit}>
             {error && (
               <p className="text-sm text-red-600" role="alert">
@@ -149,13 +168,13 @@ export default function AddIncome() {
 
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !isVerifiedMember}
               className="w-full py-3.5 rounded-xl font-medium text-white bg-[#0F9D8A] hover:bg-[#0d8a7a] disabled:opacity-70 disabled:cursor-not-allowed transition-colors"
             >
               {submitting ? t('addIncome.saving', 'Saving...') : t('addIncome.submit')}
             </button>
           </form>
-          )}
+        )}
       </div>
     </CenteredLayout>
   )

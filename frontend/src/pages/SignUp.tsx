@@ -34,7 +34,7 @@ export default function SignUp() {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [role, setRole] = useState<Role>('rider')
   const [cooperativeId, setCooperativeId] = useState<string>('')
-  const [adminCooperativesIds, setAdminCooperativesIds] = useState<number[]>([])
+  const [adminCooperativeId, setAdminCooperativeId] = useState<number | null>(null)
   const [inviteCode, setInviteCode] = useState('')
   const [cooperatives, setCooperatives] = useState<Cooperative[]>([])
   const [coopsLoading, setCoopsLoading] = useState(true)
@@ -76,8 +76,8 @@ export default function SignUp() {
       setError(t('signup.errors.cooperativeRequired', 'Please select a cooperative'))
       return
     }
-    if (role === 'administrator' && adminCooperativesIds.length === 0) {
-      setError(t('signup.errors.cooperativesRequired', 'Select at least one cooperative to administer.'))
+    if (role === 'administrator' && !adminCooperativeId) {
+      setError(t('signup.errors.cooperativesRequired', 'Select one cooperative to administer.'))
       return
     }
     if (role === 'administrator' && !inviteCode.trim()) {
@@ -96,12 +96,23 @@ export default function SignUp() {
           full_name: fullName.trim(),
           role,
           ...(role === 'rider' && cooperativeId ? { cooperative_id: parseInt(cooperativeId, 10) } : {}),
-          ...(role === 'administrator' ? { invite_code: inviteCode.trim(), cooperatives: adminCooperativesIds } : {}),
+          ...(role === 'administrator' && adminCooperativeId ? { invite_code: inviteCode.trim(), cooperatives: [adminCooperativeId] } : {}),
         }),
       })
       navigate('/login', { state: { message: t('signup.successMessage', 'Account created! You can now log in.') } })
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Registration failed'
+      const raw = err instanceof Error ? err.message : ''
+      const lower = raw.toLowerCase()
+      let msg = t('signup.errors.registrationFailed', 'Registration failed')
+      if (lower.includes('email') && (lower.includes('already exists') || lower.includes('exist'))) {
+        msg = t('signup.errors.emailAlreadyExists', 'A user with this email already exists.')
+      } else if ((lower.includes('phone') || lower.includes('numero')) && (lower.includes('already exists') || lower.includes('exist'))) {
+        msg = t('signup.errors.phoneAlreadyExists', 'A user with this phone number already exists.')
+      } else if (lower.includes('server error') || lower.includes('please try again')) {
+        msg = t('signup.errors.serverError', 'Server error. Please try again.')
+      } else if (raw) {
+        msg = raw
+      }
       setError(msg)
     } finally {
       setSubmitting(false)
@@ -209,7 +220,7 @@ export default function SignUp() {
                   type="button"
                   onClick={() => {
                     setRole('rider')
-                    setAdminCooperativesIds([])
+                    setAdminCooperativeId(null)
                     setInviteCode('')
                   }}
                   className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium border-2 transition-colors ${
@@ -252,16 +263,11 @@ export default function SignUp() {
                       {cooperatives.map((c) => (
                         <label key={c.id} className="flex items-center gap-2 cursor-pointer">
                           <input
-                            type="checkbox"
-                            checked={adminCooperativesIds.includes(c.id)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setAdminCooperativesIds((prev) => [...prev, c.id])
-                              } else {
-                                setAdminCooperativesIds((prev) => prev.filter((id) => id !== c.id))
-                              }
-                            }}
-                            className="rounded border-gray-300 text-[#0F9D8A] focus:ring-[#0F9D8A]"
+                            type="radio"
+                            name="adminCooperative"
+                            checked={adminCooperativeId === c.id}
+                            onChange={() => setAdminCooperativeId(c.id)}
+                            className="border-gray-300 text-[#0F9D8A] focus:ring-[#0F9D8A]"
                           />
                           <span className="text-sm text-gray-900">{c.name}</span>
                         </label>

@@ -22,20 +22,26 @@ class ContributionViewSet(CreateModelMixin, viewsets.ReadOnlyModelViewSet):
     def get_permissions(self):
         if self.action == "create":
             return [permissions.IsAuthenticated(), IsRider()]
-        if self.action == "verify":
+        if self.action in ("verify", "unverify"):
             return [permissions.IsAuthenticated(), IsCooperativeAdmin()]
         return [permissions.IsAuthenticated()]
 
     def get_queryset(self):
         user = self.request.user
+        qs = Contribution.objects.all()
         if user.is_superuser:
-            qs = Contribution.objects.all()
+            pass
         elif user.is_cooperative_admin:
-            qs = Contribution.objects.filter(cooperative__admins=user).distinct()
+            qs = qs.filter(cooperative__admins=user).distinct()
         elif user.is_rider:
-            qs = Contribution.objects.filter(rider=user)
+            qs = qs.filter(rider=user)
         else:
             qs = Contribution.objects.none()
+
+        # For non-superusers, only include contributions from verified members
+        if not user.is_superuser:
+            qs = qs.filter(rider__cooperative_membership__is_verified=True)
+
         return qs.select_related("rider", "cooperative")
 
     @action(detail=True, methods=["post"], url_path="verify")
@@ -51,3 +57,23 @@ class ContributionViewSet(CreateModelMixin, viewsets.ReadOnlyModelViewSet):
         contribution.save()
         serializer = self.get_serializer(contribution)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="unverify")
+    def unverify(self, request, pk=None):
+        """Set contribution status back to PENDING. Only admins; only VERIFIED."""
+        contribution = self.get_object()
+        if contribution.status != Contribution.Status.VERIFIED:
+            return Response(
+                {"detail": "Only VERIFIED contributions can be unverified."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        contribution.status = Contribution.Status.PENDING
+        contribution.save()
+        serializer = self.get_serializer(contribution)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["get"], url_path="recent")
+    def recent(self, request):
+        """Return last 10 contributions for admin overview (amount, date, rider)."""
+        qs = self.get_queryset().order_by("-date", "-created_at")[:10]
+        return Response(self.get_serializer(qs, many=True).data)

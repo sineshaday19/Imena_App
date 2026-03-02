@@ -23,6 +23,7 @@ class IncomeRecord(models.Model):
         decimal_places=2,
         default=Decimal("0"),
     )
+    notes = models.TextField(blank=True, default="")
 
     class Meta:
         db_table = "income_incomerecord"

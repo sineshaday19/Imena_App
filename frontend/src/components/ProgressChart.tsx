@@ -4,22 +4,24 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
-import { getIncomeStats, type StatPoint } from '@/lib/api'
+import { getContributionStats, getIncomeStats, type StatPoint } from '@/lib/api'
 
 const BRAND = '#0F9D8A'
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-const MONTHS_SHORT_RW = ['Mut','Gas','Wer','Mat','Gic','Kam','Nya','Kan','Nze','Uku','Ugs','Ukw']
+// Full Kinyarwanda month names so the chart is clear (e.g. "Gashyantare" = February, not "Gas")
+const MONTHS_RW = ['Mutarama','Gashyantare','Werurwe','Mata','Gicuransi','Kamena','Nyakanga','Kanama','Nzeri','Ukuboza','Ugushyingo','Ukwa cumi na kabiri']
 
 function formatPeriodLabel(period: string, groupBy: 'month' | 'year', lang: string): string {
   if (groupBy === 'year') return period
   const [, m] = period.split('-')
   const idx = parseInt(m, 10) - 1
-  return lang === 'rw' ? MONTHS_SHORT_RW[idx] : MONTHS_SHORT[idx]
+  return lang === 'rw' ? MONTHS_RW[idx] : MONTHS_SHORT[idx]
 }
 
 function formatRWF(value: number): string {
@@ -28,14 +30,20 @@ function formatRWF(value: number): string {
   return String(value)
 }
 
-export default function ProgressChart() {
+interface ProgressChartProps {
+  /** When this value changes, the chart refetches (e.g. after admin verifies a member). */
+  refreshTrigger?: number
+}
+
+export default function ProgressChart({ refreshTrigger }: ProgressChartProps = {}) {
   const { t, i18n } = useTranslation()
   const chartRef = useRef<HTMLDivElement>(null)
 
   const currentYear = new Date().getFullYear()
   const [groupBy, setGroupBy] = useState<'month' | 'year'>('month')
   const [year, setYear] = useState(currentYear)
-  const [data, setData] = useState<StatPoint[]>([])
+  const [incomeData, setIncomeData] = useState<StatPoint[]>([])
+  const [contributionData, setContributionData] = useState<StatPoint[]>([])
   const [loading, setLoading] = useState(true)
 
   const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear - i)
@@ -43,21 +51,34 @@ export default function ProgressChart() {
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const stats = await getIncomeStats(groupBy, groupBy === 'month' ? year : undefined)
-      setData(stats)
+      const [income, contribution] = await Promise.all([
+        getIncomeStats(groupBy, groupBy === 'month' ? year : undefined),
+        getContributionStats(groupBy, groupBy === 'month' ? year : undefined),
+      ])
+      setIncomeData(income)
+      setContributionData(contribution)
     } catch {
-      setData([])
+      setIncomeData([])
+      setContributionData([])
     } finally {
       setLoading(false)
     }
   }, [groupBy, year])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { load() }, [load, refreshTrigger])
 
-  const chartData = data.map((d) => ({
-    label: formatPeriodLabel(d.period, groupBy, i18n.language),
-    total: d.total,
-  }))
+  // Merge income + contribution by period for grouped bar chart
+  const allPeriods = [...new Set([...incomeData.map((d) => d.period), ...contributionData.map((d) => d.period)])].sort()
+  const chartData = allPeriods.map((period) => {
+    const inc = incomeData.find((d) => d.period === period)
+    const con = contributionData.find((d) => d.period === period)
+    return {
+      label: formatPeriodLabel(period, groupBy, i18n.language),
+      period,
+      income: inc?.total ?? 0,
+      contribution: con?.total ?? 0,
+    }
+  })
 
   const handleDownloadPDF = async () => {
     if (!chartRef.current) return
@@ -74,14 +95,14 @@ export default function ProgressChart() {
     const imgH = (canvas.height * imgW) / canvas.width
 
     const title = groupBy === 'year'
-      ? t('chart.titleYear')
-      : `${t('chart.titleMonth')} ${year}`
+      ? `${t('chart.titleYear')} — ${t('chart.income')} & ${t('chart.contribution', 'Contribution')}`
+      : `${t('chart.titleMonth')} ${year} — ${t('chart.income')} & ${t('chart.contribution', 'Contribution')}`
 
     pdf.setFontSize(14)
     pdf.setTextColor(15, 157, 138)
     pdf.text(title, 10, 12)
     pdf.addImage(imgData, 'PNG', 10, 18, imgW, Math.min(imgH, pageH - 28))
-    pdf.save(`imena-income-${groupBy === 'year' ? 'yearly' : year}.pdf`)
+    pdf.save(`imena-income-contribution-${groupBy === 'year' ? 'yearly' : year}.pdf`)
   }
 
   return (
@@ -144,10 +165,10 @@ export default function ProgressChart() {
         </div>
       </div>
 
-      {/* Chart */}
+      {/* Chart — Income + Contribution */}
       <div ref={chartRef} className="bg-white rounded-xl p-4">
         <p className="text-xs text-gray-400 mb-3">
-          {groupBy === 'year' ? t('chart.titleYear') : `${t('chart.titleMonth')} ${year}`}
+          {groupBy === 'year' ? t('chart.titleYear') : `${t('chart.titleMonth')} ${year}`} — {t('chart.income')} & {t('chart.contribution', 'Contribution')}
         </p>
 
         {loading ? (
@@ -159,8 +180,8 @@ export default function ProgressChart() {
             {t('chart.noData')}
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis
                 dataKey="label"
@@ -176,11 +197,19 @@ export default function ProgressChart() {
                 width={44}
               />
               <Tooltip
-                formatter={(value: number) => [`${value.toLocaleString()} RWF`, t('chart.income')]}
+                formatter={(value: number, name: string) => [
+                  `${value.toLocaleString()} RWF`,
+                  name === 'income' ? t('chart.income') : t('chart.contribution', 'Contribution'),
+                ]}
                 contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: 12 }}
-                cursor={{ fill: `${BRAND}15` }}
+                cursor={{ fill: `${BRAND}10` }}
               />
-              <Bar dataKey="total" fill={BRAND} radius={[4, 4, 0, 0]} maxBarSize={48} />
+              <Legend
+                formatter={(value) => (value === 'income' ? t('chart.income') : t('chart.contribution', 'Contribution'))}
+                wrapperStyle={{ fontSize: 11 }}
+              />
+              <Bar dataKey="income" fill={BRAND} radius={[4, 4, 0, 0]} maxBarSize={36} name="income" />
+              <Bar dataKey="contribution" fill="#7c3aed" radius={[4, 4, 0, 0]} maxBarSize={36} name="contribution" />
             </BarChart>
           </ResponsiveContainer>
         )}

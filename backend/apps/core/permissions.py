@@ -14,11 +14,18 @@ class IsRider(permissions.BasePermission):
 
 
 class IsCooperativeAdmin(permissions.BasePermission):
-    """Allow only authenticated users with role COOPERATIVE_ADMIN."""
+    """Allow only authenticated users with role COOPERATIVE_ADMIN who are staff.
+
+    In practice this means:
+    - User.role == COOPERATIVE_ADMIN
+    - User.is_staff is True (set by a system administrator)
+    """
 
     def has_permission(self, request, view):
-        return (
-            request.user
-            and request.user.is_authenticated
-            and request.user.is_cooperative_admin
+        user = request.user
+        return bool(
+            user
+            and user.is_authenticated
+            and user.is_cooperative_admin
+            and user.is_staff
         )

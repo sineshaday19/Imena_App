@@ -1,7 +1,8 @@
 """Read-only report endpoints. Aggregations at DB level; visibility by rider/admin."""
 from django.db.models import Case, Count, DecimalField, Sum, Value, When
+from django.db.models.functions import TruncMonth, TruncYear
 
-from rest_framework import permissions, viewsets
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -10,23 +11,39 @@ from apps.income.models import IncomeRecord
 
 
 def _income_queryset(user):
+    qs = IncomeRecord.objects.all()
     if user.is_superuser:
-        return IncomeRecord.objects.all()
-    if user.is_cooperative_admin:
-        return IncomeRecord.objects.filter(cooperative__admins=user).distinct()
-    if user.is_rider:
-        return IncomeRecord.objects.filter(rider=user)
-    return IncomeRecord.objects.none()
+        pass
+    elif user.is_cooperative_admin:
+        qs = qs.filter(cooperative__admins=user).distinct()
+    elif user.is_rider:
+        qs = qs.filter(rider=user)
+    else:
+        qs = IncomeRecord.objects.none()
+
+    # Only include records from verified cooperative members for non-superusers
+    if not user.is_superuser:
+        qs = qs.filter(rider__cooperative_membership__is_verified=True)
+
+    return qs
 
 
 def _contribution_queryset(user):
+    qs = Contribution.objects.all()
     if user.is_superuser:
-        return Contribution.objects.all()
-    if user.is_cooperative_admin:
-        return Contribution.objects.filter(cooperative__admins=user).distinct()
-    if user.is_rider:
-        return Contribution.objects.filter(rider=user)
-    return Contribution.objects.none()
+        pass
+    elif user.is_cooperative_admin:
+        qs = qs.filter(cooperative__admins=user).distinct()
+    elif user.is_rider:
+        qs = qs.filter(rider=user)
+    else:
+        qs = Contribution.objects.none()
+
+    # Only include records from verified cooperative members for non-superusers
+    if not user.is_superuser:
+        qs = qs.filter(rider__cooperative_membership__is_verified=True)
+
+    return qs
 
 
 class ReportViewSet(viewsets.ViewSet):
@@ -36,8 +53,19 @@ class ReportViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=["get"], url_path="income-by-rider")
     def income_by_rider(self, request):
-        """Income totals per rider (and cooperative) in date range. Visibility: rider=self, admin=cooperatives they admin."""
+        """Income totals per rider (and cooperative) in date range.
+
+        Visibility:
+        - System admin (superuser/staff): all data
+        - Verified cooperative admins (role=COOPERATIVE_ADMIN and is_staff=True): cooperatives they administer
+        Other users receive 403.
+        """
         user = request.user
+        if not (user.is_authenticated and (user.is_superuser or (user.is_cooperative_admin and user.is_staff))):
+            return Response(
+                {"detail": "Only verified cooperative administrators can view this report."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         date_from = request.query_params.get("from")
         date_to = request.query_params.get("to")
         qs = _income_queryset(user).values(
@@ -61,8 +89,13 @@ class ReportViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=["get"], url_path="income-by-cooperative")
     def income_by_cooperative(self, request):
-        """Income totals per cooperative in date range. Visibility: rider=self coop, admin=cooperatives they admin."""
+        """Income totals per cooperative in date range. Same visibility rules as income_by_rider."""
         user = request.user
+        if not (user.is_authenticated and (user.is_superuser or (user.is_cooperative_admin and user.is_staff))):
+            return Response(
+                {"detail": "Only verified cooperative administrators can view this report."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         date_from = request.query_params.get("from")
         date_to = request.query_params.get("to")
         qs = _income_queryset(user).values(
@@ -84,8 +117,18 @@ class ReportViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=["get"], url_path="contributions-summary")
     def contributions_summary(self, request):
-        """Total contributions and pending vs verified totals. Optional date range. Visibility: rider=self, admin=cooperatives they admin."""
+        """Total contributions and pending vs verified totals. Optional date range.
+
+        Visibility:
+        - System admin (superuser/staff)
+        - Verified cooperative admins (role=COOPERATIVE_ADMIN and is_staff=True)
+        """
         user = request.user
+        if not (user.is_authenticated and (user.is_superuser or (user.is_cooperative_admin and user.is_staff))):
+            return Response(
+                {"detail": "Only verified cooperative administrators can view this report."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
         date_from = request.query_params.get("from")
         date_to = request.query_params.get("to")
         qs = _contribution_queryset(user)
@@ -122,3 +165,47 @@ class ReportViewSet(viewsets.ViewSet):
             if agg[key] is None:
                 agg[key] = 0
         return Response(agg)
+
+    @action(detail=False, methods=["get"], url_path="contributions-stats")
+    def contributions_stats(self, request):
+        """Contribution totals grouped by month or year. Default: verified only. Same params as income stats.
+
+        Visible only to system admins and verified cooperative admins.
+        """
+        user = request.user
+        if not (user.is_authenticated and (user.is_superuser or (user.is_cooperative_admin and user.is_staff))):
+            return Response(
+                {"detail": "Only verified cooperative administrators can view this report."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        group_by = request.query_params.get("group_by", "month")
+        year = request.query_params.get("year")
+        verified_only = request.query_params.get("verified", "1") == "1"
+        qs = _contribution_queryset(user)
+        if verified_only:
+            qs = qs.filter(status=Contribution.Status.VERIFIED)
+        if group_by == "year":
+            rows = (
+                qs.annotate(period=TruncYear("date"))
+                .values("period")
+                .annotate(total=Sum("amount"))
+                .order_by("period")
+            )
+            data = [
+                {"period": row["period"].strftime("%Y"), "total": str(row["total"] or 0)}
+                for row in rows
+            ]
+        else:
+            if year:
+                qs = qs.filter(date__year=year)
+            rows = (
+                qs.annotate(period=TruncMonth("date"))
+                .values("period")
+                .annotate(total=Sum("amount"))
+                .order_by("period")
+            )
+            data = [
+                {"period": row["period"].strftime("%Y-%m"), "total": str(row["total"] or 0)}
+                for row in rows
+            ]
+        return Response({"group_by": group_by, "data": data})

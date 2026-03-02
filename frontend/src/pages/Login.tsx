@@ -34,17 +34,17 @@ export default function Login() {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background image */}
+      {/* Background image — translateZ(0) forces GPU layer so blur renders on mobile */}
       <img
         src="/woman-rider.png"
         alt=""
-        className="absolute inset-0 w-full h-full object-cover blur-md scale-110"
+        className="absolute inset-0 w-full h-full object-cover blur-md [transform:translateZ(0)_scale(1.1)]"
       />
       {/* Dark overlay */}
       <div className="absolute inset-0 bg-black/40" aria-hidden />
 
-      {/* Card — full screen on mobile, centered card on tablet+ */}
-      <div className="relative z-10 w-full sm:max-w-md bg-white sm:rounded-2xl shadow-soft p-6 sm:p-8 mx-0 sm:mx-4 min-h-screen sm:min-h-0 sm:max-h-[90vh] overflow-y-auto flex flex-col justify-center">
+      {/* Card — centered with padding so background shows on mobile and desktop */}
+      <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-soft p-6 sm:p-8 mx-4 my-4 sm:my-0 max-h-[90vh] overflow-y-auto flex flex-col justify-center">
         <header className="relative flex items-center justify-between px-0 py-0 mb-4 -mt-1">
           <Link
             to="/"
@@ -87,7 +87,15 @@ export default function Login() {
                 const isAdmin = user.role === 'COOPERATIVE_ADMIN'
                 navigate(isAdmin ? '/admin' : '/rider', { state: { email: user.email || user.phone_number } })
               } catch (err) {
-                setError(err instanceof Error ? err.message : 'Login failed')
+                const raw = err instanceof Error ? err.message : ''
+                const lower = raw.toLowerCase()
+                let msg = t('login.loginFailed', 'Login failed')
+                if (lower.includes('no active account') || lower.includes('credentials')) {
+                  msg = t('login.noActiveAccount', 'No active account found with the given credentials')
+                } else if (raw) {
+                  msg = raw
+                }
+                setError(msg)
               } finally {
                 setSubmitting(false)
               }

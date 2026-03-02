@@ -28,20 +28,34 @@ class IncomeRecordViewSet(CreateModelMixin, viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
+        qs = IncomeRecord.objects.all()
         if user.is_superuser:
-            qs = IncomeRecord.objects.all()
+            pass
         elif user.is_cooperative_admin:
-            qs = IncomeRecord.objects.filter(cooperative__admins=user).distinct()
+            qs = qs.filter(cooperative__admins=user).distinct()
         elif user.is_rider:
-            qs = IncomeRecord.objects.filter(rider=user)
+            qs = qs.filter(rider=user)
         else:
             qs = IncomeRecord.objects.none()
+
+        # For non-superusers, only include income from verified members
+        if not user.is_superuser:
+            qs = qs.filter(rider__cooperative_membership__is_verified=True)
+
         return qs.select_related("rider", "cooperative")
 
     @action(detail=False, methods=["get"], url_path="summary")
     def summary(self, request):
-        """Return total income visible to the current user."""
+        """Return total income visible to the current user. Optional query: date=YYYY-MM-DD for a single day."""
         qs = self.get_queryset()
+        date_str = request.query_params.get("date")
+        if date_str:
+            try:
+                from datetime import datetime
+                dt = datetime.strptime(date_str, "%Y-%m-%d").date()
+                qs = qs.filter(date=dt)
+            except ValueError:
+                pass
         total = qs.aggregate(total=Sum("amount"))["total"] or 0
         return Response({"total_income": str(total)})
 
@@ -83,3 +97,10 @@ class IncomeRecordViewSet(CreateModelMixin, viewsets.ReadOnlyModelViewSet):
             ]
 
         return Response({"group_by": group_by, "data": data})
+
+    @action(detail=False, methods=["get"], url_path="recent")
+    def recent(self, request):
+        """Return last 10 income records for overview (with notes)."""
+        from .serializers import IncomeRecordSerializer
+        qs = self.get_queryset().order_by("-date", "-id")[:10]
+        return Response(IncomeRecordSerializer(qs, many=True).data)

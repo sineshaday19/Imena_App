@@ -88,7 +88,15 @@ export function clearTokens(): void {
 }
 
 export type TokenResponse = { access: string; refresh: string }
-export type UserMe = { id: number; email: string; phone_number: string; role: string; is_superuser?: boolean }
+export type UserMe = {
+  id: number
+  email: string
+  phone_number: string
+  role: string
+  is_superuser?: boolean
+  is_member_verified?: boolean
+  cooperative?: { id: number; name: string } | null
+}
 export type CooperativeMember = { id: number; email: string; is_verified: boolean }
 export type Cooperative = { id: number; name: string }
 export type CooperativeDetail = {
@@ -105,6 +113,50 @@ export async function getTotalIncome(): Promise<number> {
   return parseFloat(data.total_income) || 0
 }
 
+/** Income for a specific date (e.g. today). Use date=YYYY-MM-DD. */
+export async function getIncomeForDate(date: string): Promise<number> {
+  const data = await apiFetch<{ total_income: string }>(`/api/income/summary/?date=${date}`)
+  return parseFloat(data.total_income) || 0
+}
+
+/** Total contributions for the current user (rider). */
+export async function getTotalContributions(): Promise<number> {
+  const data = await apiFetch<{ total_amount: number | string | null }>(
+    '/api/reports/contributions-summary/'
+  )
+  const v = data.total_amount
+  return typeof v === 'number' ? v : parseFloat(String(v ?? 0)) || 0
+}
+
+/** Contributions summary (total + verified amount). Admin uses verified_amount for stats. */
+export async function getContributionsSummary(): Promise<{
+  total_amount: number
+  verified_amount: number
+  pending_amount: number
+  total_count: number
+  verified_count: number
+  pending_count: number
+}> {
+  const data = await apiFetch<{
+    total_amount: number | string | null
+    verified_amount: number | string | null
+    pending_amount: number | string | null
+    total_count: number
+    verified_count: number
+    pending_count: number
+  }>('/api/reports/contributions-summary/')
+  const num = (v: number | string | null) =>
+    typeof v === 'number' ? v : parseFloat(String(v ?? 0)) || 0
+  return {
+    total_amount: num(data.total_amount),
+    verified_amount: num(data.verified_amount),
+    pending_amount: num(data.pending_amount),
+    total_count: data.total_count ?? 0,
+    verified_count: data.verified_count ?? 0,
+    pending_count: data.pending_count ?? 0,
+  }
+}
+
 export type StatPoint = { period: string; total: number }
 
 export async function getIncomeStats(
@@ -117,6 +169,83 @@ export async function getIncomeStats(
     `/api/income/stats/?${params}`
   )
   return data.data.map((d) => ({ period: d.period, total: parseFloat(d.total) || 0 }))
+}
+
+/** Contribution stats grouped by month or year (verified only for admin chart). */
+export async function getContributionStats(
+  groupBy: 'month' | 'year',
+  year?: number
+): Promise<StatPoint[]> {
+  const params = new URLSearchParams({ group_by: groupBy, verified: '1' })
+  if (year) params.set('year', String(year))
+  const data = await apiFetch<{ data: { period: string; total: string }[] }>(
+    `/api/reports/contributions-stats/?${params}`
+  )
+  return data.data.map((d) => ({ period: d.period, total: parseFloat(d.total) || 0 }))
+}
+
+export type IncomeRecordItem = {
+  id: number
+  rider: { id: number; email: string }
+  cooperative: { id: number; name: string }
+  date: string
+  amount: string
+  notes?: string
+}
+
+/** Recent income records for admin overview (last 10, with notes). */
+export async function getRecentIncome(): Promise<IncomeRecordItem[]> {
+  const data = await apiFetch<IncomeRecordItem[]>('/api/income/recent/')
+  return Array.isArray(data) ? data : []
+}
+
+/** All income records for the current rider (payments to cooperative). */
+export async function getMyIncomeRecords(): Promise<IncomeRecordItem[]> {
+  const data = await apiFetch<IncomeRecordItem[] | { results: IncomeRecordItem[] }>('/api/income/')
+  if (Array.isArray(data)) return data
+  return Array.isArray((data as { results: IncomeRecordItem[] }).results)
+    ? (data as { results: IncomeRecordItem[] }).results
+    : []
+}
+
+export type ContributionItem = {
+  id: number
+  rider: { id: number; email: string; phone_number?: string }
+  cooperative: { id: number; name: string }
+  date: string
+  amount: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+/** Recent contributions for admin overview (last 10, with amount and who made it). */
+export async function getRecentContributions(): Promise<ContributionItem[]> {
+  const data = await apiFetch<ContributionItem[]>('/api/contributions/recent/')
+  return Array.isArray(data) ? data : []
+}
+
+/** All contributions for the current rider. */
+export async function getMyContributions(): Promise<ContributionItem[]> {
+  const data = await apiFetch<ContributionItem[] | { results: ContributionItem[] }>('/api/contributions/')
+  if (Array.isArray(data)) return data
+  return Array.isArray((data as { results: ContributionItem[] }).results)
+    ? (data as { results: ContributionItem[] }).results
+    : []
+}
+
+/** Verify a single contribution (admin). Only PENDING contributions can be verified. */
+export async function verifyContribution(contributionId: number): Promise<ContributionItem> {
+  return apiFetch<ContributionItem>(`/api/contributions/${contributionId}/verify/`, {
+    method: 'POST',
+  })
+}
+
+/** Unverify a contribution (admin). Only VERIFIED contributions can be set back to PENDING. */
+export async function unverifyContribution(contributionId: number): Promise<ContributionItem> {
+  return apiFetch<ContributionItem>(`/api/contributions/${contributionId}/unverify/`, {
+    method: 'POST',
+  })
 }
 
 export async function getCooperatives(): Promise<Cooperative[]> {

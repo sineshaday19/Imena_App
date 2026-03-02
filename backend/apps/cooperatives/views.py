@@ -62,8 +62,9 @@ class CooperativeViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="members/(?P<member_id>[^/.]+)/verify")
     def verify_member(self, request, pk=None, member_id=None):
-        """Toggle verification status of a membership. Admin only."""
-        if request.user.role != "COOPERATIVE_ADMIN":
+        """Toggle verification status of a membership only. Admin only. Does not change contribution status."""
+        user = request.user
+        if not (user.is_authenticated and user.is_cooperative_admin and user.is_staff):
             return Response(
                 {"detail": "Only cooperative administrators can verify members."},
                 status=status.HTTP_403_FORBIDDEN,

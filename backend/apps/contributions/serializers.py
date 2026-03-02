@@ -26,6 +26,10 @@ class ContributionCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 "You can only create contributions for your own cooperative."
             )
+        if not membership.is_verified:
+            raise serializers.ValidationError(
+                "Your cooperative membership is not verified yet. Please contact your cooperative administrator."
+            )
         return value
 
     def create(self, validated_data):
@@ -55,7 +59,9 @@ class ContributionSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_rider(self, obj):
-        return {"id": obj.rider_id, "email": obj.rider.email}
+        email = obj.rider.email or ""
+        phone = getattr(obj.rider, "phone_number", "") or ""
+        return {"id": obj.rider_id, "email": email, "phone_number": phone}
 
     def get_cooperative(self, obj):
         return {"id": obj.cooperative_id, "name": obj.cooperative.name}
