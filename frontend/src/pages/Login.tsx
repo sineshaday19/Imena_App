@@ -30,6 +30,7 @@ export default function Login() {
 
   const toggleLanguage = () => {
     i18n.changeLanguage(i18n.language === 'en' ? 'rw' : 'en')
+    setError(null)
   }
 
   return (

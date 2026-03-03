@@ -254,7 +254,10 @@ export default function AdminDashboard() {
     }
   }
 
-  const toggleLanguage = () => i18n.changeLanguage(i18n.language === 'en' ? 'rw' : 'en')
+  const toggleLanguage = () => {
+    i18n.changeLanguage(i18n.language === 'en' ? 'rw' : 'en')
+    setAddError(null)
+  }
 
   const totalRiders = allMembers.length
   const verifiedCount = allMembers.filter((m) => m.is_verified).length

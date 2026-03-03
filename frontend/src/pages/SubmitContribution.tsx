@@ -50,6 +50,7 @@ export default function SubmitContribution() {
 
   const toggleLanguage = () => {
     i18n.changeLanguage(i18n.language === 'en' ? 'rw' : 'en')
+    setError(null)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
