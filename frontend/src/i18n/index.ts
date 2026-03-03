@@ -260,7 +260,7 @@ const resources = {
         addIncomeSubtitle: 'Andika amafaranga wakoreye uyu munsi.',
         submitContributionTitle: 'Tanga umusanzu',
         submitContributionSubtitle: 'Ishyura',
-        notVerified: 'Uri gutegereza ko umuyobozi wa koperative yemeza ubunyamuryango bwawe.',
+        notVerified: 'Tegereza ko umuyobozi wa koperative yemeza ubunyamuryango bwawe.',
         yourSummary: 'Igiteranyo cyawe',
         todaysIncome: 'Amafaranga y\'uyu munsi',
         totalContributions: 'Igiteranyo cy\'imisanzu',
