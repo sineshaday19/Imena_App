@@ -11,6 +11,17 @@ https://github.com/user-attachments/assets/6ecc8195-1220-4640-86b3-2e4925164cd7
 ---
 
 
+# Rider and cooperative admin dashboards (Netlify)**
+
+
+https://imena-app.netlify.app/
+
+
+# System admin (Render / Django admin)
+
+
+https://imena-app.onrender.com/admin/
+
 
 
 ## 1. Project Description
