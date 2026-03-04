@@ -151,7 +151,7 @@ The following is a high-level, stack-agnostic deployment approach. Actual hostin
 2. **Static hosting** : Deploy the contents of `dist/` to any static host (e.g. Nginx, Apache, or a cloud storage bucket with a CDN). The app is a single-page application: the server should serve `index.html` for client-side routes (or use host-level configuration for history-mode routing).
 3. **API base URL** : Ensure the frontend is configured (e.g. via environment or build-time variable) to call the deployed backend API URL so that login and data requests go to the correct origin.
 
-### Frontend–Backend Communication in Production
+### Frontend-Backend Communication in Production
 
 - The React app runs in the user’s browser and sends HTTP requests to the backend API (e.g. `https://api.example.com`).
 - Authentication: the frontend obtains JWT access (and optionally refresh) tokens from the backend token endpoints and sends the access token (e.g. in the `Authorization` header) on subsequent API requests.
