@@ -17,7 +17,7 @@ https://github.com/user-attachments/assets/6ecc8195-1220-4640-86b3-2e4925164cd7
 
 ### What the Application Does
 
-Imena is a mobile application for managing cooperatives income and contributions. It provides a single place for riders (cooperative members) and cooperative administrators to track daily income, submit and verify contributions, and view reports. The system supports two distinct roles with role-specific dashboards and API visibility.
+Imena is a mobile-supported application for managing cooperatives income and contributions. It provides a single place for riders (cooperative members) and cooperative administrators to track daily income, submit and verify contributions, and view reports. The system supports two distinct roles with role-specific dashboards and API visibility.
 
 ### Target Users
 
@@ -157,6 +157,13 @@ The following is a high-level, stack-agnostic deployment approach. Actual hostin
 - Authentication: the frontend obtains JWT access (and optionally refresh) tokens from the backend token endpoints and sends the access token (e.g. in the `Authorization` header) on subsequent API requests.
 - The backend validates the token and applies role-based filtering so riders see only their data and admins see data for cooperatives they manage. CORS must allow the frontend origin (e.g. `https://app.example.com`) in `CORS_ALLOWED_ORIGINS`.
 
+In the reference deployment used for this project, the backend runs on Render (Django + Gunicorn + Whitenoise with PostgreSQL), and the frontend is deployed on Netlify as a Vite single-page application with SPA redirects configured via a `_redirects` file.
+
+#### Reference Deployment Architecture (System Admin vs. Web Dashboards)
+
+- **System admin (Render / Django admin)** : Accesses the Django admin interface on the Render backend (e.g. `/admin/`) to manage users, cooperatives, verification flags, and other global configuration. This layer is effectively responsible for API governance, authorizations, and the underlying database.
+- **Rider and cooperative admin dashboards (Netlify)** : Use the Netlify-hosted React SPA, which authenticates against the Render backend and calls JSON APIs for all operations. Riders record daily income and submit contributions; cooperative admins verify contributions and view cooperative-level dashboards. Permissions and visibility on these dashboards are enforced by the backend based on roles and verification status.
+
 ---
 
 ## 4. Code Files Overview
@@ -226,5 +233,12 @@ The frontend is a Vite + React + TypeScript application. Source code lives under
 - `vite-env.d.ts` : TypeScript declarations for Vite. The project uses the `@/` path alias (defined in `vite.config.ts`) pointing to `src/`.
 
 ---
+
+## 5. Development & Best Practices Summary
+
+- **Environment-driven configuration**: Secrets and deployment-specific values (e.g. `SECRET_KEY`, `DATABASE_URL`, `CORS_ALLOWED_ORIGINS`, `VITE_API_URL`) are supplied via environment variables or `.env` files that are not committed to version control.
+- **Separation of concerns**: The backend exposes a clean JSON API with role-based permissions, while the frontend consumes this API and handles UI, routing, and language switching (English/Kinyarwanda) using `react-i18next`.
+- **Progressive verification flows**: Riders and cooperative admins can sign up and log in, but key actions (such as viewing cooperative-wide data or submitting contributions) are gated by explicit verification flags and admin approval, reflecting real-world cooperative workflows.
+- **Testing and quality**: The codebase includes representative backend and frontend tests (e.g. for authentication, core flows, and pages) and follows common Django/React conventions to support maintainability and academic review.
 
 This document describes the project as implemented and is intended for use in a capstone or final project submission.

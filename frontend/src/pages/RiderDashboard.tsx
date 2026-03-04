@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import CenteredLayout from '@/components/CenteredLayout'
 import { useAuth } from '@/contexts/AuthContext'
-import { getIncomeForDate, getMyContributions, getMyIncomeRecords, getTotalContributions } from '@/lib/api'
+import { getIncomeForDate, getMyContributions, getMyIncomeRecords } from '@/lib/api'
 
 function GlobeIcon() {
   return (
@@ -99,12 +99,17 @@ export default function RiderDashboard() {
     const today = new Date()
     const dateStr = today.toISOString().slice(0, 10)
     try {
-      const [income, contributionsTotal] = await Promise.all([
+      const [income, contribs] = await Promise.all([
         getIncomeForDate(dateStr),
-        getTotalContributions(),
+        getMyContributions(),
       ])
+
+      const todaysContribTotal = contribs
+        .filter((c) => c.date.slice(0, 10) === dateStr)
+        .reduce((sum, c) => sum + Number(c.amount || 0), 0)
+
       setTodaysIncome(income)
-      setTotalContributions(contributionsTotal)
+      setTotalContributions(todaysContribTotal)
     } catch {
       setTodaysIncome(0)
       setTotalContributions(0)
@@ -270,52 +275,30 @@ export default function RiderDashboard() {
           <h2 className="text-sm font-semibold text-[#0F9D8A] uppercase tracking-wide mb-3">
             {t('rider.paymentHistory', 'Payment & contribution history')}
           </h2>
-          {incomeRecords.length === 0 && contributions.length === 0 ? (
+          {contributions.filter((c) => c.status === 'VERIFIED').length === 0 ? (
             <p className="text-sm text-gray-500 italic py-4">{t('rider.noHistoryYet', 'No payments or contributions yet.')}</p>
           ) : (
             <div className="bg-white rounded-xl shadow-soft overflow-hidden">
               <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
-                {[
-                  ...incomeRecords.map((r) => ({
-                    id: `income-${r.id}`,
-                    date: r.date,
-                    amount: Number(r.amount),
-                    type: 'income' as const,
-                    cooperative: r.cooperative.name,
-                  })),
-                  ...contributions.map((c) => ({
-                    id: `contrib-${c.id}`,
-                    date: c.date,
-                    amount: Number(c.amount),
-                    type: 'contribution' as const,
-                    cooperative: c.cooperative.name,
-                  })),
-                ]
+                {contributions
+                  .filter((c) => c.status === 'VERIFIED')
                   .sort((a, b) => b.date.localeCompare(a.date))
-                  .map((item) => (
+                  .map((c) => (
                     <div
-                      key={item.id}
+                      key={`contrib-${c.id}`}
                       className="flex items-center justify-between gap-3 px-4 py-3"
                     >
                       <div>
                         <p className="text-sm font-medium text-gray-900">
-                          {item.amount.toLocaleString()} RWF
+                          {Number(c.amount).toLocaleString()} RWF
                         </p>
                         <p className="text-xs text-gray-500">
-                          {item.date}
-                          {item.cooperative ? ` · ${item.cooperative}` : ''}
+                          {c.date}
+                          {c.cooperative?.name ? ` · ${c.cooperative.name}` : ''}
                         </p>
                       </div>
-                      <span
-                        className={
-                          item.type === 'income'
-                            ? 'text-xs font-medium text-[#0F9D8A] shrink-0'
-                            : 'text-xs font-medium text-purple-600 shrink-0'
-                        }
-                      >
-                        {item.type === 'income'
-                          ? t('rider.income', 'Income')
-                          : t('rider.contribution', 'Contribution')}
+                      <span className="text-xs font-medium text-purple-600 shrink-0">
+                        {t('rider.contribution', 'Contribution')}
                       </span>
                     </div>
                   ))}
