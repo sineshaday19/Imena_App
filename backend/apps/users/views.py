@@ -1,3 +1,6 @@
+from django.db import IntegrityError
+import logging
+
 from rest_framework import permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -8,6 +11,9 @@ from .models import User
 from .serializers import RegisterSerializer
 
 
+logger = logging.getLogger(__name__)
+
+
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
 def register(request):
@@ -15,7 +21,21 @@ def register(request):
     serializer = RegisterSerializer(data=request.data)
     if not serializer.is_valid():
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-    serializer.save()
+    try:
+        serializer.save()
+    except IntegrityError:
+        # Normalize any database uniqueness errors (email/phone) into a clean 400
+        return Response(
+            {"detail": "A user with this email or phone number already exists."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    except Exception:
+        # Avoid leaking a 500 HTML page to the frontend; log and send JSON
+        logger.exception("Unexpected error while registering user")
+        return Response(
+            {"detail": "Server error while creating account. Please try again."},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
     return Response(
         {"detail": "Account created successfully. You can now log in."},
         status=status.HTTP_201_CREATED,

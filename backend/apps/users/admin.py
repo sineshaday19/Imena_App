@@ -12,3 +12,7 @@ class UserAdmin(BaseUserAdmin):
     fieldsets = BaseUserAdmin.fieldsets + (
         (None, {"fields": ("phone_number", "role")}),
     )
+    add_fieldsets = (
+        (None, {"fields": ("username", "password1", "password2")}),
+        ("Profile", {"fields": ("email", "phone_number", "role")}),
+    )
