@@ -241,4 +241,4 @@ The frontend is a Vite + React + TypeScript application. Source code lives under
 - **Progressive verification flows**: Riders and cooperative admins can sign up and log in, but key actions (such as viewing cooperative-wide data or submitting contributions) are gated by explicit verification flags and admin approval, reflecting real-world cooperative workflows.
 - **Testing and quality**: The codebase includes representative backend and frontend tests (e.g. for authentication, core flows, and pages) and follows common Django/React conventions to support maintainability and academic review.
 
-This document describes the project as implemented and is intended for use in a capstone or final project submission.
+
