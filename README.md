@@ -11,7 +11,7 @@ https://youtu.be/If0avqHkCMQ
 ---
 
 
-# Rider and cooperative admin dashboards (Netlify)**
+# Rider and cooperative admin dashboards (Netlify)
 
 
 https://imena-app.netlify.app/
