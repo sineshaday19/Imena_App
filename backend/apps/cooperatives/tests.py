@@ -28,6 +28,7 @@ class CooperativeTests(TestCase):
             phone_number="+250788222222",
             password="admin123",
             role=User.Role.COOPERATIVE_ADMIN,
+            is_staff=True,
         )
         self.coop.admins.add(self.admin_user)
 

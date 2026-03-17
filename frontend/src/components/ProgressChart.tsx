@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import type { TooltipProps } from 'recharts'
 import { getContributionStats, getIncomeStats, type StatPoint } from '@/lib/api'
 
 const BRAND = '#0F9D8A'
@@ -33,6 +34,16 @@ function formatRWF(value: number): string {
 interface ProgressChartProps {
   /** When this value changes, the chart refetches (e.g. after admin verifies a member). */
   refreshTrigger?: number
+}
+
+type TooltipFormatter = TooltipProps<number, string>['formatter']
+
+const tooltipFormatter: TooltipFormatter = (value, name) => {
+  const num = Number(value ?? 0)
+  return [
+    `${num.toLocaleString()} RWF`,
+    name === 'income' ? 'Income' : 'Contribution',
+  ]
 }
 
 export default function ProgressChart({ refreshTrigger }: ProgressChartProps = {}) {
@@ -197,10 +208,7 @@ export default function ProgressChart({ refreshTrigger }: ProgressChartProps = {
                 width={44}
               />
               <Tooltip
-                formatter={(value: number, name: string) => [
-                  `${value.toLocaleString()} RWF`,
-                  name === 'income' ? t('chart.income') : t('chart.contribution', 'Contribution'),
-                ]}
+                formatter={tooltipFormatter}
                 contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', fontSize: 12 }}
                 cursor={{ fill: `${BRAND}10` }}
               />

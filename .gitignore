@@ -14,11 +14,16 @@ build/
 .venv/
 venv/
 *.sqlite3
+.coverage
+htmlcov/
+coverage.xml
 
 # Node
 node_modules/
 dist/
 .cache/
+.vite/
+vite.config.ts.timestamp-*
 
 # OS
 .DS_Store

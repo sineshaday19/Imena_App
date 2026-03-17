@@ -24,13 +24,16 @@ class ReportTests(TestCase):
             password="rider123",
             role=User.Role.RIDER,
         )
-        CooperativeMembership.objects.create(user=self.rider, cooperative=self.coop)
+        CooperativeMembership.objects.create(
+            user=self.rider, cooperative=self.coop, is_verified=True
+        )
         self.admin_user = User.objects.create_user(
             username="admin@test.com",
             email="admin@test.com",
             phone_number="+250788222222",
             password="admin123",
             role=User.Role.COOPERATIVE_ADMIN,
+            is_staff=True,
         )
         self.coop.admins.add(self.admin_user)
 
@@ -48,7 +51,7 @@ class ReportTests(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_contributions_summary(self):
-        """Contributions summary returns totals."""
+        """Contributions summary returns totals (admin only)."""
         Contribution.objects.create(
             rider=self.rider,
             cooperative=self.coop,
@@ -56,7 +59,7 @@ class ReportTests(TestCase):
             amount=5000,
             status=Contribution.Status.VERIFIED,
         )
-        self._auth_rider()
+        self._auth_admin()
         resp = self.client.get("/api/reports/contributions-summary/")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertIn("total_amount", resp.data)

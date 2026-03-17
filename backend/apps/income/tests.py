@@ -23,7 +23,9 @@ class IncomeTests(TestCase):
             password="rider123",
             role=User.Role.RIDER,
         )
-        CooperativeMembership.objects.create(user=self.rider, cooperative=self.coop)
+        CooperativeMembership.objects.create(
+            user=self.rider, cooperative=self.coop, is_verified=True
+        )
 
     def _auth_rider(self):
         refresh = RefreshToken.for_user(self.rider)
