@@ -105,10 +105,19 @@ export default function SignUp() {
       const raw = err instanceof Error ? err.message : ''
       const lower = raw.toLowerCase()
       let msg = t('signup.errors.registrationFailed', 'Registration failed')
-      if (lower.includes('email') && (lower.includes('already exists') || lower.includes('exist'))) {
-        msg = t('signup.errors.emailAlreadyExists', 'A user with this email already exists.')
-      } else if ((lower.includes('phone') || lower.includes('numero')) && (lower.includes('already exists') || lower.includes('exist'))) {
+      const duplicateExists = lower.includes('already exists') || lower.includes('exist')
+      if (
+        duplicateExists &&
+        ((lower.includes('email') && lower.includes('phone')) || lower.includes('email or phone'))
+      ) {
+        msg = t(
+          'signup.errors.emailOrPhoneAlreadyExists',
+          'A user with this email or phone number already exists.'
+        )
+      } else if (duplicateExists && lower.includes('phone')) {
         msg = t('signup.errors.phoneAlreadyExists', 'A user with this phone number already exists.')
+      } else if (duplicateExists && lower.includes('email')) {
+        msg = t('signup.errors.emailAlreadyExists', 'A user with this email already exists.')
       } else if (lower.includes('server error') || lower.includes('please try again')) {
         msg = t('signup.errors.serverError', 'Server error. Please try again.')
       } else if (raw) {
