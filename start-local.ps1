@@ -1,4 +1,5 @@
 $ErrorActionPreference = "Stop"
+$env:IMENA_FORCE_SQLITE = "1"
 $Root = $PSScriptRoot
 $Backend = Join-Path $Root "backend"
 $Frontend = Join-Path $Root "frontend"

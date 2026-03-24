@@ -14,6 +14,9 @@ try:
 except ImportError:
     pass
 
+if os.environ.get("IMENA_FORCE_SQLITE", "").strip().lower() in ("1", "true", "yes"):
+    os.environ["DATABASE_URL"] = ""
+
 SECRET_KEY = os.environ["SECRET_KEY"]
 
 DEBUG = os.environ.get("DEBUG", "0").strip().lower() in ("1", "true", "yes")
