@@ -1,12 +1,14 @@
 import os
 from unittest.mock import Mock, patch
 
+from django.db import IntegrityError
 from django.test import SimpleTestCase
 from rest_framework.exceptions import ValidationError
 
 from apps.users.admin import UserAddForm
 from apps.users.jwt_auth import CustomTokenObtainPairSerializer
 from apps.users.serializers import RegisterSerializer
+from apps.users.views import _registration_integrity_user_message
 
 
 class UserAddFormUnitTests(SimpleTestCase):
@@ -111,6 +113,22 @@ class RegisterSerializerUnitTests(SimpleTestCase):
         )
         self.assertFalse(s.is_valid())
         self.assertIn("cooperative_id", s.errors)
+
+
+class RegistrationIntegrityMessageTests(SimpleTestCase):
+    def test_phone_number_in_error_uses_phone_message(self):
+        exc = IntegrityError('UNIQUE constraint failed: users_user.phone_number')
+        self.assertIn(
+            "phone number",
+            _registration_integrity_user_message(exc, "rider").lower(),
+        )
+
+    def test_unknown_constraint_uses_combined_message(self):
+        exc = IntegrityError("unknown constraint violation")
+        self.assertIn(
+            "email or phone",
+            _registration_integrity_user_message(exc, "rider").lower(),
+        )
 
 
 class JwtAuthUnitTests(SimpleTestCase):

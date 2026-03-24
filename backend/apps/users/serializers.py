@@ -1,14 +1,16 @@
-import os
-
 from rest_framework import serializers
 
 from apps.cooperatives.models import Cooperative, CooperativeMembership
 
+from .admin_invite_constants import ADMIN_REGISTRATION_INVITE_CODE
 from .models import User
 
 
 class RegisterSerializer(serializers.ModelSerializer):
-    """Register a new user. Riders can use email or phone; admins require email. Riders must select a cooperative."""
+    """Register a new user. Riders can use email or phone; admins require email. Riders must select a cooperative.
+
+    Full name is not unique: two users may share the same name; uniqueness enforced on email, phone, and username only.
+    """
 
     full_name = serializers.CharField(write_only=True, required=False, default="")
     password = serializers.CharField(write_only=True, min_length=8, style={"input_type": "password"})
@@ -86,12 +88,7 @@ class RegisterSerializer(serializers.ModelSerializer):
                     {"cooperatives": "Administrators must select at least one cooperative."}
                 )
         if role_str == "administrator":
-            expected = os.environ.get("ADMIN_INVITE_CODE", "")
-            if not expected:
-                raise serializers.ValidationError(
-                    {"invite_code": "Administrator registration is currently disabled."}
-                )
-            if attrs.get("invite_code", "") != expected:
+            if attrs.get("invite_code", "") != ADMIN_REGISTRATION_INVITE_CODE:
                 raise serializers.ValidationError(
                     {"invite_code": "Invalid invite code."}
                 )

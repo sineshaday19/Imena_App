@@ -123,6 +123,17 @@ export default function SignUp() {
       } else if (raw) {
         msg = raw
       }
+      if (
+        role === 'rider' &&
+        !email.trim() &&
+        msg ===
+          t('signup.errors.emailAlreadyExists', 'A user with this email already exists.')
+      ) {
+        msg = t(
+          'signup.errors.emailOrPhoneAlreadyExists',
+          'A user with this email or phone number already exists.'
+        )
+      }
       setError(msg)
     } finally {
       setSubmitting(false)

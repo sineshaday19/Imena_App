@@ -14,6 +14,28 @@ from .serializers import RegisterSerializer
 logger = logging.getLogger(__name__)
 
 
+def _registration_integrity_user_message(exc: IntegrityError, role: str) -> str:
+    """
+    Rare race or DB-level unique violations: return the same prose as RegisterSerializer
+    so clients can map duplicate phone vs email without always showing the combined line.
+    """
+    text = str(exc).lower()
+    role_l = (role or "rider").lower()
+
+    if "phone_number" in text:
+        return "A user with this phone number already exists."
+
+    if "email_key" in text or "users_user.email" in text or "users_user_email" in text:
+        return "A user with this email already exists."
+
+    if "username" in text:
+        if role_l == "administrator":
+            return "A user with this email already exists."
+        return "A user with this phone number already exists."
+
+    return "A user with this email or phone number already exists."
+
+
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
 def register(request):
@@ -23,10 +45,10 @@ def register(request):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     try:
         serializer.save()
-    except IntegrityError:
-        # Normalize any database uniqueness errors (email/phone) into a clean 400
+    except IntegrityError as integrity_exc:
+        role_str = request.data.get("role") or "rider"
         return Response(
-            {"detail": "A user with this email or phone number already exists."},
+            {"detail": _registration_integrity_user_message(integrity_exc, str(role_str))},
             status=status.HTTP_400_BAD_REQUEST,
         )
     except Exception:

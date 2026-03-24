@@ -136,6 +136,30 @@ class RegisterTests(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("phone_number", resp.data)
 
+    def test_register_two_riders_same_full_name_different_phones(self):
+        """Identity is email/phone/username; duplicate full names are allowed."""
+        shared_name = "Marie Uwase"
+        users = (
+            ("600001", "marie.one@example.com"),
+            ("600002", "marie.two@example.com"),
+        )
+        for phone_suffix, rider_email in users:
+            payload = {
+                "phone_number": f"+250788{phone_suffix}",
+                "email": rider_email,
+                "password": "validpass123",
+                "confirm_password": "validpass123",
+                "full_name": shared_name,
+                "role": "rider",
+                "cooperative_id": self.coop.id,
+            }
+            resp = self.client.post("/api/users/register/", payload, format="json")
+            self.assertEqual(resp.status_code, status.HTTP_201_CREATED, resp.data)
+        self.assertEqual(
+            User.objects.filter(first_name="Marie", last_name="Uwase").count(),
+            2,
+        )
+
 
 class MeTests(TestCase):
     """Test GET /api/users/me/."""
