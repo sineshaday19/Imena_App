@@ -1,3 +1,4 @@
+from django.db import transaction
 from rest_framework import serializers
 
 from apps.cooperatives.models import Cooperative, CooperativeMembership
@@ -7,11 +8,6 @@ from .models import User
 
 
 class RegisterSerializer(serializers.ModelSerializer):
-    """Register a new user. Riders can use email or phone; admins require email. Riders must select a cooperative.
-
-    Full name is not unique: two users may share the same name; uniqueness enforced on email, phone, and username only.
-    """
-
     full_name = serializers.CharField(write_only=True, required=False, default="")
     password = serializers.CharField(write_only=True, min_length=8, style={"input_type": "password"})
     confirm_password = serializers.CharField(write_only=True, style={"input_type": "password"})
@@ -92,6 +88,22 @@ class RegisterSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {"invite_code": "Invalid invite code."}
                 )
+
+        email_clean = (attrs.get("email") or "").strip()
+        phone_clean = (attrs.get("phone_number") or "").strip()
+        proposed_username = email_clean.lower() if email_clean else phone_clean
+        existing_login = User.objects.filter(username=proposed_username).first()
+        if existing_login and existing_login.phone_number != phone_clean:
+            raise serializers.ValidationError(
+                {
+                    "phone_number": (
+                        "This number is already used as the login (username) on another account, "
+                        "but that account's phone field is different—often after editing in Django admin. "
+                        "Ask a system administrator to open that user and align Username with Phone number."
+                    )
+                }
+            )
+
         attrs.pop("invite_code", None)
         return attrs
 
@@ -107,18 +119,19 @@ class RegisterSerializer(serializers.ModelSerializer):
         last_name = parts[1] if len(parts) > 1 else ""
         email = validated_data.get("email")
         username = email or phone_number
-        user = User.objects.create_user(
-            username=username,
-            email=email or None,
-            password=validated_data["password"],
-            first_name=first_name,
-            last_name=last_name,
-            role=role,
-            phone_number=phone_number,
-        )
-        if role == User.Role.RIDER and cooperative_id:
-            CooperativeMembership.objects.create(user=user, cooperative=cooperative_id)
-        if role == User.Role.COOPERATIVE_ADMIN:
-            for coop in cooperatives:
-                coop.admins.add(user)
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=username,
+                email=email or None,
+                password=validated_data["password"],
+                first_name=first_name,
+                last_name=last_name,
+                role=role,
+                phone_number=phone_number,
+            )
+            if role == User.Role.RIDER and cooperative_id:
+                CooperativeMembership.objects.create(user=user, cooperative=cooperative_id)
+            if role == User.Role.COOPERATIVE_ADMIN:
+                for coop in cooperatives:
+                    coop.admins.add(user)
         return user

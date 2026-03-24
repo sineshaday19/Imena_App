@@ -6,8 +6,6 @@ from .models import IncomeRecord
 
 
 class IncomeRecordSerializer(serializers.ModelSerializer):
-    """Read-only income record with rider and cooperative info."""
-
     rider = serializers.SerializerMethodField()
     cooperative = serializers.SerializerMethodField()
 
@@ -24,8 +22,6 @@ class IncomeRecordSerializer(serializers.ModelSerializer):
 
 
 class IncomeRecordCreateSerializer(serializers.ModelSerializer):
-    """Create income record. Rider is set from request.user; cooperative must be rider's."""
-
     class Meta:
         model = IncomeRecord
         fields = ["cooperative", "date", "amount", "notes"]

@@ -1,18 +1,18 @@
-"""
-Django settings. Loaded via config.settings (package __init__).
-All config from environment; use .env in development.
-"""
+"""Django settings for Imena."""
 import os
 from pathlib import Path
 from urllib.parse import urlparse
 
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+
+    _dotenv_path = BASE_DIR / ".env"
+    if _dotenv_path.is_file():
+        load_dotenv(_dotenv_path, override=True)
 except ImportError:
     pass
-
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 SECRET_KEY = os.environ["SECRET_KEY"]
 
@@ -69,7 +69,7 @@ TEMPLATES = [
     },
 ]
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "")
+DATABASE_URL = (os.environ.get("DATABASE_URL") or "").strip()
 if DATABASE_URL:
     parsed = urlparse(DATABASE_URL)
     _db_user = parsed.username or ""
@@ -115,7 +115,6 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# DRF + JWT (Simple JWT)
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -123,7 +122,6 @@ REST_FRAMEWORK = {
     ],
 }
 
-# CORS: set CORS_ALLOWED_ORIGINS in env (e.g. http://localhost:5173,http://127.0.0.1:5173)
 _cors = os.environ.get("CORS_ALLOWED_ORIGINS", "")
 CORS_ALLOWED_ORIGINS = [s.strip() for s in _cors.split(",") if s.strip()]
 if not CORS_ALLOWED_ORIGINS and not DEBUG:

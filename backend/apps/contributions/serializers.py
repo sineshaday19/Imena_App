@@ -6,8 +6,6 @@ from .models import Contribution
 
 
 class ContributionCreateSerializer(serializers.ModelSerializer):
-    """Create contribution. Rider and status set from request; cooperative must be rider's."""
-
     class Meta:
         model = Contribution
         fields = ["cooperative", "date", "amount"]
@@ -39,8 +37,6 @@ class ContributionCreateSerializer(serializers.ModelSerializer):
 
 
 class ContributionSerializer(serializers.ModelSerializer):
-    """Read-only contribution with rider and cooperative info."""
-
     rider = serializers.SerializerMethodField()
     cooperative = serializers.SerializerMethodField()
 

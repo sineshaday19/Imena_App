@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import CenteredLayout from '@/components/CenteredLayout'
+import { useAuth } from '@/contexts/AuthContext'
 import { getCooperativeDetail, verifyMember, type CooperativeDetail, type CooperativeMember } from '@/lib/api'
 
 function BackArrowIcon() {
@@ -24,6 +25,20 @@ export default function CooperativeMembers() {
   const { id } = useParams<{ id: string }>()
   const { i18n } = useTranslation()
   const navigate = useNavigate()
+  const { user, loading: authLoading } = useAuth()
+
+  const isCoopAdminPendingStaff = useMemo(() => {
+    if (!user || user.is_superuser) return false
+    return user.role === 'COOPERATIVE_ADMIN' && user.is_staff !== true
+  }, [user])
+
+  useEffect(() => {
+    if (authLoading) return
+    if (isCoopAdminPendingStaff) {
+      navigate('/admin', { replace: true })
+    }
+  }, [authLoading, isCoopAdminPendingStaff, navigate])
+
   const [coop, setCoop] = useState<CooperativeDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -31,12 +46,12 @@ export default function CooperativeMembers() {
   const [toggling, setToggling] = useState<Record<number, boolean>>({})
 
   useEffect(() => {
-    if (!id) return
+    if (!id || authLoading || isCoopAdminPendingStaff) return
     getCooperativeDetail(Number(id))
       .then(setCoop)
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load'))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, authLoading, isCoopAdminPendingStaff])
 
   const toggleLanguage = () => {
     i18n.changeLanguage(i18n.language === 'en' ? 'rw' : 'en')
@@ -62,6 +77,14 @@ export default function CooperativeMembers() {
     } finally {
       setToggling((prev) => ({ ...prev, [member.id]: false }))
     }
+  }
+
+  if (authLoading || isCoopAdminPendingStaff) {
+    return (
+      <CenteredLayout>
+        <p className="p-6 text-sm text-gray-400 text-center" role="status">…</p>
+      </CenteredLayout>
+    )
   }
 
   return (

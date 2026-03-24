@@ -1,7 +1,3 @@
-"""
-Custom JWT token obtain view that accepts email or phone number as the identifier.
-Django's default auth uses username; we resolve email/phone to the stored username.
-"""
 from django.contrib.auth import authenticate
 
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -11,8 +7,6 @@ from .models import User
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    """Accepts 'username' which can be either email or phone_number."""
-
     def validate(self, attrs):
         raw = (attrs.get("username") or "").strip()
         password = attrs.get("password", "")
@@ -20,7 +14,6 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
             from rest_framework import serializers
             raise serializers.ValidationError({"username": "Email or phone number is required."})
 
-        # Resolve email/phone to the stored username
         user = User.objects.filter(email__iexact=raw).first()
         if user is None:
             user = User.objects.filter(phone_number=raw).first()

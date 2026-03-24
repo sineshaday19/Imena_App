@@ -3,8 +3,6 @@ from django.db import models
 
 
 class User(AbstractUser):
-    """Custom user model (project-level identity + role)."""
-
     class Role(models.TextChoices):
         RIDER = "RIDER", "Rider"
         COOPERATIVE_ADMIN = "COOPERATIVE_ADMIN", "Cooperative admin"

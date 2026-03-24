@@ -167,6 +167,9 @@ const resources = {
         recentContributionsList: 'Recent Contributions',
         recentContributors: 'Recent Contributors',
         noVerifiedContributorsYet: 'No verified contributors yet.',
+        pendingStaffTitle: 'Account pending approval',
+        pendingStaffBody:
+          'You can sign in, but cooperative data is hidden until a system administrator marks your account as staff in Django admin (Users → your account → Staff status). After that, refresh this page or log in again.',
       },
     },
   },
@@ -339,6 +342,9 @@ const resources = {
         recentContributionsList: 'Imisanzu iheruka',
         recentContributors: 'Abatanze umusanzu uheruka',
         noVerifiedContributorsYet: 'Nta batangiye byemejwe bari kugeza ubu.',
+        pendingStaffTitle: 'Konti iteraje kwemezwa',
+        pendingStaffBody:
+          'Ushobora kwinjira, ariko amakuru ya koperative ntarenze kugeza umuyobozi wa sisitemu yanditse konti yawe nk’umukozi (Staff) muri Django admin. Nyuma unoze urupapuro cyangwa ongera winjire.',
       },
     },
   },

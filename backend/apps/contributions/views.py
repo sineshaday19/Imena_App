@@ -3,15 +3,13 @@ from rest_framework.decorators import action
 from rest_framework.mixins import CreateModelMixin
 from rest_framework.response import Response
 
-from apps.core.permissions import IsCooperativeAdmin, IsRider
+from apps.core.permissions import IsCooperativeAdmin, IsRider, cooperative_admin_has_operational_data
 
 from .models import Contribution
 from .serializers import ContributionCreateSerializer, ContributionSerializer
 
 
 class ContributionViewSet(CreateModelMixin, viewsets.ReadOnlyModelViewSet):
-    """List, retrieve, create, and verify contributions. Create=riders; verify=admins."""
-
     permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):
@@ -32,13 +30,15 @@ class ContributionViewSet(CreateModelMixin, viewsets.ReadOnlyModelViewSet):
         if user.is_superuser:
             pass
         elif user.is_cooperative_admin:
-            qs = qs.filter(cooperative__admins=user).distinct()
+            if cooperative_admin_has_operational_data(user):
+                qs = qs.filter(cooperative__admins=user).distinct()
+            else:
+                qs = Contribution.objects.none()
         elif user.is_rider:
             qs = qs.filter(rider=user)
         else:
             qs = Contribution.objects.none()
 
-        # For non-superusers, only include contributions from verified members
         if not user.is_superuser:
             qs = qs.filter(rider__cooperative_membership__is_verified=True)
 
@@ -46,7 +46,6 @@ class ContributionViewSet(CreateModelMixin, viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="verify")
     def verify(self, request, pk=None):
-        """Set contribution status to VERIFIED. Only admins of the cooperative; only PENDING."""
         contribution = self.get_object()
         if contribution.status != Contribution.Status.PENDING:
             return Response(
@@ -60,7 +59,6 @@ class ContributionViewSet(CreateModelMixin, viewsets.ReadOnlyModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="unverify")
     def unverify(self, request, pk=None):
-        """Set contribution status back to PENDING. Only admins; only VERIFIED."""
         contribution = self.get_object()
         if contribution.status != Contribution.Status.VERIFIED:
             return Response(
@@ -74,6 +72,5 @@ class ContributionViewSet(CreateModelMixin, viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="recent")
     def recent(self, request):
-        """Return last 10 contributions for admin overview (amount, date, rider)."""
         qs = self.get_queryset().order_by("-date", "-created_at")[:10]
         return Response(self.get_serializer(qs, many=True).data)

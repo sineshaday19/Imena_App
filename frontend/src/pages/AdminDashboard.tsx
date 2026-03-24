@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import CenteredLayout from '@/components/CenteredLayout'
@@ -117,7 +117,30 @@ function StatCard({
 export default function AdminDashboard() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user, logout, loading: authLoading, isAuthenticated } = useAuth()
+
+  const canViewOperationalData = useMemo(() => {
+    if (!user) return false
+    if (user.is_superuser) return true
+    if (user.role !== 'COOPERATIVE_ADMIN') return true
+    return user.is_staff === true
+  }, [user])
+
+  const isCoopAdminPendingStaff = useMemo(() => {
+    if (!user || user.is_superuser) return false
+    return user.role === 'COOPERATIVE_ADMIN' && user.is_staff !== true
+  }, [user])
+
+  useEffect(() => {
+    if (authLoading) return
+    if (!isAuthenticated) {
+      navigate('/login', { replace: true })
+      return
+    }
+    if (user && user.role !== 'COOPERATIVE_ADMIN' && !user.is_superuser) {
+      navigate('/rider', { replace: true })
+    }
+  }, [authLoading, isAuthenticated, user, navigate])
 
   const [cooperatives, setCooperatives] = useState<Cooperative[]>([])
   const [showAddCoop, setShowAddCoop] = useState(false)
@@ -172,6 +195,17 @@ export default function AdminDashboard() {
   }, [])
 
   useEffect(() => {
+    if (!canViewOperationalData) {
+      setCooperatives([])
+      setAllMembers([])
+      setMembersLoading(false)
+      setTotalIncome(null)
+      setVerifiedContributionsTotal(null)
+      setPendingContributionsCount(null)
+      setRecentIncome([])
+      setRecentContributions([])
+      return
+    }
     loadCooperatives().then(loadAllMembers)
     getTotalIncome().then(setTotalIncome).catch(() => setTotalIncome(0))
     getContributionsSummary()
@@ -185,7 +219,7 @@ export default function AdminDashboard() {
       })
     getRecentIncome().then(setRecentIncome).catch(() => setRecentIncome([]))
     getRecentContributions().then(setRecentContributions).catch(() => setRecentContributions([]))
-  }, [loadCooperatives, loadAllMembers])
+  }, [loadCooperatives, loadAllMembers, canViewOperationalData])
 
   const handleAddCooperative = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -260,7 +294,64 @@ export default function AdminDashboard() {
   }
 
   const totalRiders = allMembers.length
-  const verifiedCount = allMembers.filter((m) => m.is_verified).length
+
+  if (authLoading || !user) {
+    return (
+      <CenteredLayout wide>
+        <header className="bg-[#0F9D8A] px-4 sm:px-6 py-4 shrink-0">
+          <h1 className="text-lg font-semibold text-white">{t('admin.title')}</h1>
+        </header>
+        <p className="p-6 text-sm text-gray-500" role="status">…</p>
+      </CenteredLayout>
+    )
+  }
+
+  if (isCoopAdminPendingStaff) {
+    return (
+      <CenteredLayout wide>
+        <header className="bg-[#0F9D8A] px-4 sm:px-6 py-4 shrink-0">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-lg font-semibold text-white">{t('admin.title')}</h1>
+              <p className="text-sm text-white/70 hidden sm:block">{t('admin.subtitle')}</p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={toggleLanguage}
+                className="hidden sm:inline-flex items-center gap-1.5 text-white/80 hover:text-white text-sm py-1 transition-colors"
+              >
+                <GlobeIcon />
+                <span>{t('admin.language')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={toggleLanguage}
+                className="sm:hidden p-2 text-white/80 hover:text-white transition-colors"
+                aria-label={t('admin.language')}
+              >
+                <GlobeIcon />
+              </button>
+              <button
+                type="button"
+                onClick={() => { logout(); navigate('/login') }}
+                className="p-2 text-white/80 hover:text-white transition-colors"
+                aria-label={t('admin.logout')}
+              >
+                <LogoutIcon />
+              </button>
+            </div>
+          </div>
+        </header>
+        <main className="flex-1 px-4 sm:px-6 py-8">
+          <div className="max-w-lg mx-auto bg-white rounded-xl shadow-soft p-6 space-y-3">
+            <h2 className="text-lg font-semibold text-gray-900">{t('admin.pendingStaffTitle')}</h2>
+            <p className="text-sm text-gray-600 leading-relaxed">{t('admin.pendingStaffBody')}</p>
+          </div>
+        </main>
+      </CenteredLayout>
+    )
+  }
 
   return (
     <CenteredLayout wide>

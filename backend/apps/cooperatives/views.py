@@ -3,13 +3,13 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.core.permissions import cooperative_admin_has_operational_data
+
 from .models import Cooperative, CooperativeMembership
 from .serializers import CooperativeCreateSerializer, CooperativeSerializer
 
 
 class CooperativeViewSet(viewsets.ModelViewSet):
-    """List, retrieve cooperatives by role. Create restricted to superuser/staff only."""
-
     permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):
@@ -30,7 +30,10 @@ class CooperativeViewSet(viewsets.ModelViewSet):
         if user.is_superuser:
             qs = Cooperative.objects.all()
         elif user.is_cooperative_admin:
-            qs = Cooperative.objects.filter(admins=user)
+            if cooperative_admin_has_operational_data(user):
+                qs = Cooperative.objects.filter(admins=user)
+            else:
+                qs = Cooperative.objects.none()
         elif user.is_rider:
             qs = Cooperative.objects.filter(members__user=user).distinct()
         else:
@@ -53,7 +56,6 @@ class CooperativeViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"], permission_classes=[permissions.AllowAny])
     def signup_choices(self, request):
-        """Public list of cooperatives for signup form (id, name only)."""
         try:
             coops = Cooperative.objects.all().values("id", "name").order_by("name")
             return Response(list(coops))
@@ -62,7 +64,6 @@ class CooperativeViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="members/(?P<member_id>[^/.]+)/verify")
     def verify_member(self, request, pk=None, member_id=None):
-        """Toggle verification status of a membership only. Admin only. Does not change contribution status."""
         user = request.user
         if not (user.is_authenticated and user.is_cooperative_admin and user.is_staff):
             return Response(

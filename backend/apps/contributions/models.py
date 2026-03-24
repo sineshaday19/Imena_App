@@ -5,8 +5,6 @@ from django.db import models
 
 
 class Contribution(models.Model):
-    """Contribution by a rider to a cooperative; amount and date, with admin verification."""
-
     class Status(models.TextChoices):
         PENDING = "PENDING", "Pending"
         VERIFIED = "VERIFIED", "Verified"

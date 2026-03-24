@@ -8,7 +8,6 @@ from .models import User
 
 
 class UserAddForm(forms.ModelForm):
-    """Add user form: cooperative for riders (membership), cooperatives for admins (admin of)."""
     cooperative = forms.ModelChoiceField(
         queryset=Cooperative.objects.all(),
         required=False,
@@ -70,14 +69,12 @@ class UserAdmin(BaseUserAdmin):
         super().save_model(request, obj, form, change)
         if change:
             return
-        # Rider: create cooperative membership (unverified) so they show in Cooperative memberships
         if obj.role == User.Role.RIDER and form.cleaned_data.get("cooperative"):
             coop = form.cleaned_data["cooperative"]
             CooperativeMembership.objects.get_or_create(
                 user=obj,
                 defaults={"cooperative": coop, "is_verified": False},
             )
-        # Cooperative admin: add to selected cooperatives' admins (same as frontend signup)
         if obj.role == User.Role.COOPERATIVE_ADMIN and form.cleaned_data.get("cooperatives"):
             for coop in form.cleaned_data["cooperatives"]:
                 coop.admins.add(obj)

@@ -94,6 +94,8 @@ export type UserMe = {
   phone_number: string
   role: string
   is_superuser?: boolean
+  /** Django staff: cooperative admins need this to access dashboard data */
+  is_staff?: boolean
   is_member_verified?: boolean
   cooperative?: { id: number; name: string } | null
 }

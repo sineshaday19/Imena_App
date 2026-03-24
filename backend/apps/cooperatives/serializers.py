@@ -4,16 +4,12 @@ from .models import Cooperative
 
 
 class CooperativeCreateSerializer(serializers.ModelSerializer):
-    """Create a new cooperative. Caller is added as admin."""
-
     class Meta:
         model = Cooperative
         fields = ["name"]
 
 
 class CooperativeSerializer(serializers.ModelSerializer):
-    """Read-only cooperative with members and admins (minimal user info)."""
-
     members = serializers.SerializerMethodField()
     admins = serializers.SerializerMethodField()
 

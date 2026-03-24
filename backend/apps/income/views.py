@@ -5,15 +5,13 @@ from rest_framework.decorators import action
 from rest_framework.mixins import CreateModelMixin
 from rest_framework.response import Response
 
-from apps.core.permissions import IsRider
+from apps.core.permissions import IsRider, cooperative_admin_has_operational_data
 
 from .models import IncomeRecord
 from .serializers import IncomeRecordCreateSerializer, IncomeRecordSerializer
 
 
 class IncomeRecordViewSet(CreateModelMixin, viewsets.ReadOnlyModelViewSet):
-    """List, retrieve, and create income records. Create restricted to riders (self only)."""
-
     permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):
@@ -32,13 +30,15 @@ class IncomeRecordViewSet(CreateModelMixin, viewsets.ReadOnlyModelViewSet):
         if user.is_superuser:
             pass
         elif user.is_cooperative_admin:
-            qs = qs.filter(cooperative__admins=user).distinct()
+            if cooperative_admin_has_operational_data(user):
+                qs = qs.filter(cooperative__admins=user).distinct()
+            else:
+                qs = IncomeRecord.objects.none()
         elif user.is_rider:
             qs = qs.filter(rider=user)
         else:
             qs = IncomeRecord.objects.none()
 
-        # For non-superusers, only include income from verified members
         if not user.is_superuser:
             qs = qs.filter(rider__cooperative_membership__is_verified=True)
 
@@ -61,12 +61,6 @@ class IncomeRecordViewSet(CreateModelMixin, viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="stats")
     def stats(self, request):
-        """
-        Return income grouped by month or year.
-        Query params:
-          - group_by: 'month' (default) | 'year'
-          - year: filter to a specific year (optional, only for group_by=month)
-        """
         qs = self.get_queryset()
         group_by = request.query_params.get("group_by", "month")
         year = request.query_params.get("year")
@@ -100,7 +94,6 @@ class IncomeRecordViewSet(CreateModelMixin, viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["get"], url_path="recent")
     def recent(self, request):
-        """Return last 10 income records for overview (with notes)."""
         from .serializers import IncomeRecordSerializer
         qs = self.get_queryset().order_by("-date", "-id")[:10]
         return Response(IncomeRecordSerializer(qs, many=True).data)

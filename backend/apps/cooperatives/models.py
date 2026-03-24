@@ -3,8 +3,6 @@ from django.db import models
 
 
 class Cooperative(models.Model):
-    """One cooperative; has many riders (via membership) and one or more admins."""
-
     name = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -24,8 +22,6 @@ class Cooperative(models.Model):
 
 
 class CooperativeMembership(models.Model):
-    """Links a rider to a single cooperative. One user, one cooperative."""
-
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

@@ -1,4 +1,3 @@
-"""Read-only report endpoints. Aggregations at DB level; visibility by rider/admin."""
 from django.db.models import Case, Count, DecimalField, Sum, Value, When
 from django.db.models.functions import TruncMonth, TruncYear
 
@@ -21,7 +20,6 @@ def _income_queryset(user):
     else:
         qs = IncomeRecord.objects.none()
 
-    # Only include records from verified cooperative members for non-superusers
     if not user.is_superuser:
         qs = qs.filter(rider__cooperative_membership__is_verified=True)
 
@@ -39,7 +37,6 @@ def _contribution_queryset(user):
     else:
         qs = Contribution.objects.none()
 
-    # Only include records from verified cooperative members for non-superusers
     if not user.is_superuser:
         qs = qs.filter(rider__cooperative_membership__is_verified=True)
 
@@ -47,19 +44,10 @@ def _contribution_queryset(user):
 
 
 class ReportViewSet(viewsets.ViewSet):
-    """Read-only reports: income and contribution summaries."""
-
     permission_classes = [permissions.IsAuthenticated]
 
     @action(detail=False, methods=["get"], url_path="income-by-rider")
     def income_by_rider(self, request):
-        """Income totals per rider (and cooperative) in date range.
-
-        Visibility:
-        - System admin (superuser/staff): all data
-        - Verified cooperative admins (role=COOPERATIVE_ADMIN and is_staff=True): cooperatives they administer
-        Other users receive 403.
-        """
         user = request.user
         if not (user.is_authenticated and (user.is_superuser or (user.is_cooperative_admin and user.is_staff))):
             return Response(
@@ -89,7 +77,6 @@ class ReportViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=["get"], url_path="income-by-cooperative")
     def income_by_cooperative(self, request):
-        """Income totals per cooperative in date range. Same visibility rules as income_by_rider."""
         user = request.user
         if not (user.is_authenticated and (user.is_superuser or (user.is_cooperative_admin and user.is_staff))):
             return Response(
@@ -117,12 +104,6 @@ class ReportViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=["get"], url_path="contributions-summary")
     def contributions_summary(self, request):
-        """Total contributions and pending vs verified totals. Optional date range.
-
-        Visibility:
-        - System admin (superuser/staff)
-        - Verified cooperative admins (role=COOPERATIVE_ADMIN and is_staff=True)
-        """
         user = request.user
         if not (user.is_authenticated and (user.is_superuser or (user.is_cooperative_admin and user.is_staff))):
             return Response(
@@ -160,7 +141,6 @@ class ReportViewSet(viewsets.ViewSet):
                 Case(When(status=Contribution.Status.VERIFIED, then=1))
             ),
         )
-        # Sum/Count return None when no rows
         for key in agg:
             if agg[key] is None:
                 agg[key] = 0
@@ -168,10 +148,6 @@ class ReportViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=["get"], url_path="contributions-stats")
     def contributions_stats(self, request):
-        """Contribution totals grouped by month or year. Default: verified only. Same params as income stats.
-
-        Visible only to system admins and verified cooperative admins.
-        """
         user = request.user
         if not (user.is_authenticated and (user.is_superuser or (user.is_cooperative_admin and user.is_staff))):
             return Response(

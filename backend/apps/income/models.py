@@ -5,8 +5,6 @@ from django.db import models
 
 
 class IncomeRecord(models.Model):
-    """Income for a rider in a cooperative on a specific day."""
-
     rider = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
