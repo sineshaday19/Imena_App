@@ -1,9 +1,14 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import CenteredLayout from '@/components/CenteredLayout'
 import { useAuth } from '@/contexts/AuthContext'
-import { getIncomeForDate, getMyContributions } from '@/lib/api'
+import {
+  getIncomeForDate,
+  getMyContributions,
+  getMyIncomeRecords,
+  type IncomeRecordItem,
+} from '@/lib/api'
 
 function GlobeIcon() {
   return (
@@ -85,37 +90,33 @@ export default function RiderDashboard() {
   }
 
   const [todaysIncome, setTodaysIncome] = useState<number | null>(null)
-  const [totalContributions, setTotalContributions] = useState<number | null>(null)
+  const [todaysContribution, setTodaysContribution] = useState<number | null>(null)
   const [contributions, setContributions] = useState<Awaited<ReturnType<typeof getMyContributions>>>([])
+  const [incomeRecords, setIncomeRecords] = useState<IncomeRecordItem[]>([])
 
-  const loadSummary = useCallback(async () => {
+  const loadDashboard = useCallback(async () => {
     if (user?.role !== 'RIDER') return
-    const today = new Date()
-    const dateStr = today.toISOString().slice(0, 10)
+    const dateStr = new Date().toISOString().slice(0, 10)
     try {
-      const [income, contribs] = await Promise.all([
+      const [income, contribs, incomes] = await Promise.all([
         getIncomeForDate(dateStr),
         getMyContributions(),
+        getMyIncomeRecords(),
       ])
 
       const todaysContribTotal = contribs
-        .filter((c) => c.status === 'VERIFIED' && c.date.slice(0, 10) === dateStr)
+        .filter((c) => c.date.slice(0, 10) === dateStr)
         .reduce((sum, c) => sum + Number(c.amount || 0), 0)
 
       setTodaysIncome(income)
-      setTotalContributions(todaysContribTotal)
+      setTodaysContribution(todaysContribTotal)
+      setContributions(contribs)
+      setIncomeRecords(incomes)
     } catch {
       setTodaysIncome(0)
-      setTotalContributions(0)
-    }
-  }, [user?.role])
-
-  const loadHistory = useCallback(async () => {
-    if (user?.role !== 'RIDER') return
-    try {
-      setContributions(await getMyContributions())
-    } catch {
+      setTodaysContribution(0)
       setContributions([])
+      setIncomeRecords([])
     }
   }, [user?.role])
 
@@ -140,9 +141,8 @@ export default function RiderDashboard() {
 
   useEffect(() => {
     if (loading || !user) return
-    loadSummary()
-    loadHistory()
-  }, [loading, user, loadSummary, loadHistory])
+    void loadDashboard()
+  }, [loading, user, loadDashboard, location.pathname])
 
   const today = new Date()
   const dateFormatted =
@@ -163,6 +163,58 @@ export default function RiderDashboard() {
           month: 'long',
           day: 'numeric',
         })
+
+  const dateStr = today.toISOString().slice(0, 10)
+  const hasIncomeToday = incomeRecords.some((r) => String(r.date).slice(0, 10) === dateStr)
+  const hasContributionToday = contributions.some((c) => String(c.date).slice(0, 10) === dateStr)
+  const contributionQuickActionBlocked = !isVerifiedMember || hasContributionToday
+
+  const historyItems = useMemo(() => {
+    type Row =
+      | {
+          kind: 'income'
+          id: number
+          date: string
+          amount: number
+          cooperative?: string
+        }
+      | {
+          kind: 'contribution'
+          id: number
+          date: string
+          amount: number
+          cooperative?: string
+          status: string
+        }
+    const items: Row[] = []
+    for (const r of incomeRecords) {
+      items.push({
+        kind: 'income',
+        id: r.id,
+        date: String(r.date),
+        amount: Number(r.amount || 0),
+        cooperative: r.cooperative?.name,
+      })
+    }
+    for (const c of contributions) {
+      items.push({
+        kind: 'contribution',
+        id: c.id,
+        date: String(c.date),
+        amount: Number(c.amount || 0),
+        cooperative: c.cooperative?.name,
+        status: c.status,
+      })
+    }
+    items.sort((a, b) => {
+      const dc = b.date.localeCompare(a.date)
+      if (dc !== 0) return dc
+      const ko = (a.kind === 'income' ? 0 : 1) - (b.kind === 'income' ? 0 : 1)
+      if (ko !== 0) return ko
+      return b.id - a.id
+    })
+    return items
+  }, [incomeRecords, contributions])
 
   if (loading) {
     return (
@@ -236,9 +288,12 @@ export default function RiderDashboard() {
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
             <Link
-              to="/rider/add-income"
+              to={hasIncomeToday ? '#' : '/rider/add-income'}
               state={{ email: identifier }}
-              className="bg-gray-50 rounded-xl shadow-soft p-4 sm:p-5 text-left hover:shadow-md transition-shadow block"
+              aria-disabled={hasIncomeToday}
+              className={`bg-gray-50 rounded-xl shadow-soft p-4 sm:p-5 text-left transition-shadow block ${
+                hasIncomeToday ? 'opacity-60 cursor-not-allowed pointer-events-none' : 'hover:shadow-md'
+              }`}
             >
               <div className="w-11 h-11 flex items-center justify-center mb-3">
                 <IncomeActionIcon />
@@ -249,13 +304,23 @@ export default function RiderDashboard() {
               <p className="text-xs text-gray-500 mt-0.5">
                 {t('rider.addIncomeSubtitle')}
               </p>
+              {hasIncomeToday && (
+                <p className="text-xs text-amber-700 mt-1">
+                  {t(
+                    'rider.alreadyRecordedIncomeToday',
+                    'You already recorded income for today.'
+                  )}
+                </p>
+              )}
             </Link>
             <Link
-              to={isVerifiedMember ? '/rider/submit-contribution' : '#'}
+              to={contributionQuickActionBlocked ? '#' : '/rider/submit-contribution'}
               state={{ email: identifier }}
-              aria-disabled={!isVerifiedMember}
+              aria-disabled={contributionQuickActionBlocked}
               className={`bg-gray-50 rounded-xl shadow-soft p-4 sm:p-5 text-left transition-shadow block ${
-                isVerifiedMember ? 'hover:shadow-md' : 'opacity-60 cursor-not-allowed pointer-events-none'
+                contributionQuickActionBlocked
+                  ? 'opacity-60 cursor-not-allowed pointer-events-none'
+                  : 'hover:shadow-md'
               }`}
             >
               <div className="w-11 h-11 flex items-center justify-center mb-3">
@@ -272,6 +337,14 @@ export default function RiderDashboard() {
                   {t(
                     'rider.notVerified',
                     'Waiting for your cooperative administrator to verify your membership.'
+                  )}
+                </p>
+              )}
+              {isVerifiedMember && hasContributionToday && (
+                <p className="text-xs text-amber-700 mt-1">
+                  {t(
+                    'rider.alreadyRecordedContributionToday',
+                    'You already submitted a contribution for today.'
                   )}
                 </p>
               )}
@@ -295,9 +368,11 @@ export default function RiderDashboard() {
             </div>
             <div className="bg-white rounded-xl shadow-soft p-4 sm:p-5 flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">{t('rider.totalContributions')}</p>
+                <p className="text-sm text-gray-500">{t('rider.todaysContribution')}</p>
                 <p className="text-2xl font-bold text-gray-900 mt-1">
-                  {totalContributions === null ? '…' : `${Number(totalContributions).toLocaleString()} RWF`}
+                  {todaysContribution === null
+                    ? '…'
+                    : `${Number(todaysContribution).toLocaleString()} RWF`}
                 </p>
               </div>
               <ContributionIcon />
@@ -309,40 +384,59 @@ export default function RiderDashboard() {
           <h2 className="text-sm font-semibold text-[#0F9D8A] uppercase tracking-wide mb-3">
             {t('rider.paymentHistory', 'Payment & contribution history')}
           </h2>
-          {contributions.length === 0 ? (
+          {historyItems.length === 0 ? (
             <p className="text-sm text-gray-500 italic py-4">{t('rider.noHistoryYet', 'No payments or contributions yet.')}</p>
           ) : (
             <div className="bg-white rounded-xl shadow-soft overflow-hidden">
               <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
-                {[...contributions]
-                  .sort((a, b) => b.date.localeCompare(a.date))
-                  .map((c) => {
-                    const st = String(c.status).toUpperCase()
-                    const isVerified = st === 'VERIFIED'
+                {historyItems.map((row) => {
+                  if (row.kind === 'income') {
                     return (
                       <div
-                        key={`contrib-${c.id}`}
+                        key={`income-${row.id}`}
                         className="flex items-center justify-between gap-3 px-4 py-3"
                       >
                         <div>
                           <p className="text-sm font-medium text-gray-900">
-                            {Number(c.amount).toLocaleString()} RWF
+                            {Number(row.amount).toLocaleString()} RWF
                           </p>
                           <p className="text-xs text-gray-500">
-                            {c.date}
-                            {c.cooperative?.name ? ` · ${c.cooperative.name}` : ''}
+                            {row.date}
+                            {row.cooperative ? ` · ${row.cooperative}` : ''}
                           </p>
                         </div>
-                        <span
-                          className={`text-xs font-medium shrink-0 ${isVerified ? 'text-purple-600' : 'text-amber-600'}`}
-                        >
-                          {isVerified
-                            ? t('rider.contribution', 'Contribution')
-                            : t('rider.contributionPending', 'Pending approval')}
+                        <span className="text-xs font-medium shrink-0 text-[#0F9D8A]">
+                          {t('rider.income', 'Income')}
                         </span>
                       </div>
                     )
-                  })}
+                  }
+                  const st = String(row.status).toUpperCase()
+                  const isVerified = st === 'VERIFIED'
+                  return (
+                    <div
+                      key={`contrib-${row.id}`}
+                      className="flex items-center justify-between gap-3 px-4 py-3"
+                    >
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">
+                          {Number(row.amount).toLocaleString()} RWF
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {row.date}
+                          {row.cooperative ? ` · ${row.cooperative}` : ''}
+                        </p>
+                      </div>
+                      <span
+                        className={`text-xs font-medium shrink-0 ${isVerified ? 'text-purple-600' : 'text-amber-600'}`}
+                      >
+                        {isVerified
+                          ? t('rider.contribution', 'Contribution')
+                          : t('rider.contributionPending', 'Pending approval')}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
