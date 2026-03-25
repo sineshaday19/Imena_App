@@ -1,3 +1,4 @@
+from django.db import IntegrityError
 from rest_framework import serializers
 
 from apps.cooperatives.models import CooperativeMembership
@@ -30,10 +31,31 @@ class ContributionCreateSerializer(serializers.ModelSerializer):
             )
         return value
 
+    def validate(self, attrs):
+        request = self.context.get("request")
+        cooperative = attrs["cooperative"]
+        day = attrs["date"]
+        if Contribution.objects.filter(
+            rider=request.user,
+            cooperative=cooperative,
+            date=day,
+        ).exists():
+            raise serializers.ValidationError(
+                {"date": "You already have a contribution for this cooperative and date."}
+            )
+        return attrs
+
     def create(self, validated_data):
         validated_data["rider"] = self.context["request"].user
         validated_data["status"] = Contribution.Status.PENDING
-        return super().create(validated_data)
+        try:
+            return super().create(validated_data)
+        except IntegrityError:
+            raise serializers.ValidationError(
+                {
+                    "date": "You already have a contribution for this cooperative and date.",
+                }
+            ) from None
 
 
 class ContributionSerializer(serializers.ModelSerializer):

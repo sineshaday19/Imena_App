@@ -1,3 +1,4 @@
+from django.db import IntegrityError
 from rest_framework import serializers
 
 from apps.cooperatives.models import CooperativeMembership
@@ -62,4 +63,11 @@ class IncomeRecordCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data["rider"] = self.context["request"].user
-        return super().create(validated_data)
+        try:
+            return super().create(validated_data)
+        except IntegrityError:
+            raise serializers.ValidationError(
+                {
+                    "date": "You already have an income record for this cooperative and date.",
+                }
+            ) from None

@@ -32,6 +32,22 @@ class ContributionTests(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
         self.assertTrue(Contribution.objects.filter(rider=self.rider, amount=5000).exists())
 
+    def test_second_contribution_same_day_rejected(self):
+        self._auth_rider()
+        day = '2026-03-25'
+        self.client.post(
+            '/api/contributions/',
+            {'cooperative': self.coop.id, 'date': day, 'amount': '2000'},
+            format='json',
+        )
+        resp = self.client.post(
+            '/api/contributions/',
+            {'cooperative': self.coop.id, 'date': day, 'amount': '3000'},
+            format='json',
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Contribution.objects.filter(rider=self.rider, cooperative=self.coop, date=day).count(), 1)
+
     def test_create_contribution_requires_auth(self):
         payload = {'cooperative': self.coop.id, 'date': '2026-02-26', 'amount': '5000'}
         resp = self.client.post('/api/contributions/', payload, format='json')

@@ -95,7 +95,11 @@ export default function AddIncome() {
       const lower = raw.toLowerCase()
       let msg =
         raw || t('addIncome.errors.saveFailed', 'Failed to save income.')
-      if (lower.includes('already have an income record')) {
+      if (
+        lower.includes('already have an income record') ||
+        lower.includes('unique_income_per_rider_coop_day') ||
+        (lower.includes('duplicate key') && lower.includes('income'))
+      ) {
         msg = t(
           'addIncome.errors.duplicateForDate',
           'You already have an income record for this cooperative and date.'

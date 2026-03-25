@@ -130,6 +130,15 @@ const resources = {
         amountLabel: 'Amount (RWF)',
         amountPlaceholder: '0',
         submit: 'Make contribution',
+        loading: 'Loading...',
+        submitting: 'Submitting...',
+        notVerified:
+          'Your cooperative membership is not verified yet. Please contact your cooperative administrator.',
+        errors: {
+          duplicateForDate:
+            'You already have a contribution for this cooperative and date.',
+          saveFailed: 'Failed to submit contribution.',
+        },
       },
       chart: {
         heading: 'Progress Statistics',
@@ -313,6 +322,15 @@ const resources = {
         amountLabel: 'Amafaranga (RWF)',
         amountPlaceholder: '0',
         submit: 'Tanga umusanzu',
+        loading: 'Biri gukurura...',
+        submitting: 'Kohereza...',
+        notVerified:
+          'Ubunyamuryango bwawe muri koperative ntiburemezwa. Vugana nʼumuyobozi wa koperative yawe.',
+        errors: {
+          duplicateForDate:
+            'Wamaze gutanga umusanzu ku munsi uyu kuri iyi koperative.',
+          saveFailed: 'Ntabwo byashoboye kohereza umusanzu.',
+        },
       },
       chart: {
         heading: 'Imibare y\'Iterambere',

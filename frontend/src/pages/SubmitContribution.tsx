@@ -89,7 +89,22 @@ export default function SubmitContribution() {
       })
       navigate('/rider', { state })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit contribution')
+      const raw = err instanceof Error ? err.message : ''
+      const lower = raw.toLowerCase()
+      let msg =
+        raw ||
+        t('submitContribution.errors.saveFailed', 'Failed to submit contribution.')
+      if (
+        lower.includes('already have a contribution') ||
+        lower.includes('unique constraint') ||
+        lower.includes('duplicate key')
+      ) {
+        msg = t(
+          'submitContribution.errors.duplicateForDate',
+          'You already have a contribution for this cooperative and date.'
+        )
+      }
+      setError(msg)
     } finally {
       setSubmitting(false)
     }

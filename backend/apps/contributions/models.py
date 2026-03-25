@@ -36,6 +36,12 @@ class Contribution(models.Model):
     class Meta:
         db_table = "contributions_contribution"
         ordering = ["-date", "-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["rider", "cooperative", "date"],
+                name="unique_contribution_per_rider_coop_day",
+            )
+        ]
 
     def __str__(self):
         return f"{self.rider} @ {self.cooperative} on {self.date}: {self.amount} ({self.status})"
