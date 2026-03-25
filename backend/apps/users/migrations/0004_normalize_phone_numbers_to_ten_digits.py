@@ -7,7 +7,7 @@ def _digits(s):
 
 def normalize_phone_numbers(apps, schema_editor):
     User = apps.get_model("users", "User")
-    for u in User.objects.iterator():
+    for u in User.objects.order_by("pk").iterator():
         fields = []
         pn = u.phone_number or ""
         d = _digits(pn)
@@ -18,8 +18,9 @@ def normalize_phone_numbers(apps, schema_editor):
         else:
             new_pn = None
         if new_pn and new_pn != pn:
-            u.phone_number = new_pn
-            fields.append("phone_number")
+            if not User.objects.filter(phone_number=new_pn).exclude(pk=u.pk).exists():
+                u.phone_number = new_pn
+                fields.append("phone_number")
         un = u.username or ""
         if "@" not in un:
             ud = _digits(un)
@@ -30,8 +31,9 @@ def normalize_phone_numbers(apps, schema_editor):
             else:
                 new_un = None
             if new_un and new_un != un:
-                u.username = new_un
-                fields.append("username")
+                if not User.objects.filter(username=new_un).exclude(pk=u.pk).exists():
+                    u.username = new_un
+                    fields.append("username")
         if fields:
             u.save(update_fields=fields)
 
