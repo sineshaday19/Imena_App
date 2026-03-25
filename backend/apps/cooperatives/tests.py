@@ -11,9 +11,9 @@ class CooperativeTests(TestCase):
         self.client = APIClient()
         self.coop = Cooperative.objects.create(name='Alpha Coop')
         Cooperative.objects.create(name='Beta Coop')
-        self.rider = User.objects.create_user(username='+250788111111', phone_number='+250788111111', password='rider123', role=User.Role.RIDER)
+        self.rider = User.objects.create_user(username='0788111111', phone_number='0788111111', password='rider123', role=User.Role.RIDER)
         CooperativeMembership.objects.create(user=self.rider, cooperative=self.coop)
-        self.admin_user = User.objects.create_user(username='admin@test.com', email='admin@test.com', phone_number='+250788222222', password='admin123', role=User.Role.COOPERATIVE_ADMIN, is_staff=True)
+        self.admin_user = User.objects.create_user(username='admin@test.com', email='admin@test.com', phone_number='0788222222', password='admin123', role=User.Role.COOPERATIVE_ADMIN, is_staff=True)
         self.coop.admins.add(self.admin_user)
 
     def _auth_rider(self):
@@ -55,7 +55,7 @@ class CooperativeTests(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
 
     def test_verify_member_not_found(self):
-        other = User.objects.create_user(username='other@test.com', email='other@test.com', phone_number='+250788999999', password='x', role=User.Role.RIDER)
+        other = User.objects.create_user(username='other@test.com', email='other@test.com', phone_number='0788999999', password='x', role=User.Role.RIDER)
         self._auth_admin()
         resp = self.client.post('/api/cooperatives/{}/members/{}/verify/'.format(self.coop.id, other.id))
         self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)

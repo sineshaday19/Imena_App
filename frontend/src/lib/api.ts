@@ -1,16 +1,51 @@
-/**
- * API client for Imena backend.
- * Uses JWT access token from localStorage when available.
- */
-
 const API_BASE: string = import.meta.env.VITE_API_URL
 
-function getAccessToken(): string | null {
-  return localStorage.getItem('imena_access_token')
+const LEGACY_ACCESS = 'imena_access_token'
+const LEGACY_REFRESH = 'imena_refresh_token'
+
+export type ApiPersona = 'rider' | 'admin'
+
+export type ApiAuthMode = 'infer' | 'none' | ApiPersona
+
+function accessKey(persona: ApiPersona): string {
+  return persona === 'admin' ? 'imena_access_token_admin' : 'imena_access_token_rider'
 }
 
-async function refreshAccessToken(): Promise<string | null> {
-  const refresh = localStorage.getItem('imena_refresh_token')
+function refreshKey(persona: ApiPersona): string {
+  return persona === 'admin' ? 'imena_refresh_token_admin' : 'imena_refresh_token_rider'
+}
+
+export function getApiPersonaFromPathname(pathname: string): ApiPersona | null {
+  if (pathname.startsWith('/admin')) return 'admin'
+  if (pathname.startsWith('/rider')) return 'rider'
+  return null
+}
+
+function migrateLegacyTokensIfNeeded(): void {
+  try {
+    const la = localStorage.getItem(LEGACY_ACCESS)
+    const lr = localStorage.getItem(LEGACY_REFRESH)
+    const hasNew =
+      localStorage.getItem(accessKey('rider')) || localStorage.getItem(accessKey('admin'))
+    if (la && lr && !hasNew) {
+      localStorage.setItem(accessKey('rider'), la)
+      localStorage.setItem(refreshKey('rider'), lr)
+      localStorage.removeItem(LEGACY_ACCESS)
+      localStorage.removeItem(LEGACY_REFRESH)
+    }
+  } catch {
+  }
+}
+
+migrateLegacyTokensIfNeeded()
+
+export function getAccessTokenForPersona(persona: ApiPersona): string | null {
+  migrateLegacyTokensIfNeeded()
+  return localStorage.getItem(accessKey(persona))
+}
+
+async function refreshAccessTokenForPersona(persona: ApiPersona): Promise<string | null> {
+  const refresh = localStorage.getItem(refreshKey(persona))
   if (!refresh) return null
   try {
     const res = await fetch(`${API_BASE}/api/token/refresh/`, {
@@ -20,19 +55,88 @@ async function refreshAccessToken(): Promise<string | null> {
     })
     if (!res.ok) return null
     const data = await res.json() as { access: string }
-    localStorage.setItem('imena_access_token', data.access)
+    localStorage.setItem(accessKey(persona), data.access)
     return data.access
   } catch {
     return null
   }
 }
 
+function setTokensForPersona(persona: ApiPersona, access: string, refresh: string): void {
+  localStorage.setItem(accessKey(persona), access)
+  localStorage.setItem(refreshKey(persona), refresh)
+}
+
+export function clearTokensForPersona(persona: ApiPersona): void {
+  localStorage.removeItem(accessKey(persona))
+  localStorage.removeItem(refreshKey(persona))
+}
+
+export function clearAllImenaTokens(): void {
+  clearTokensForPersona('rider')
+  clearTokensForPersona('admin')
+  try {
+    localStorage.removeItem(LEGACY_ACCESS)
+    localStorage.removeItem(LEGACY_REFRESH)
+  } catch {
+  }
+}
+
+export type TokenResponse = { access: string; refresh: string }
+export type UserMe = {
+  id: number
+  email: string
+  phone_number: string
+  role: string
+  is_superuser?: boolean
+  is_staff?: boolean
+  is_member_verified?: boolean
+  cooperative?: { id: number; name: string } | null
+}
+
+export function userMayAccessAdminDashboard(user: UserMe): boolean {
+  return user.role === 'COOPERATIVE_ADMIN' || user.is_superuser === true
+}
+
+export function persistSessionForUser(
+  me: UserMe,
+  access: string,
+  refresh: string
+): void {
+  const adminCapable = userMayAccessAdminDashboard(me)
+  const riderCapable = me.role === 'RIDER' || me.is_superuser === true
+  if (riderCapable) setTokensForPersona('rider', access, refresh)
+  if (adminCapable) setTokensForPersona('admin', access, refresh)
+}
+
+export async function fetchMeWithAccessToken(access: string): Promise<UserMe> {
+  const url = `${API_BASE}/api/users/me/`
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${access}`, 'Content-Type': 'application/json' },
+  })
+  if (!res.ok) {
+    const body = await res.text()
+    throw new Error(body || `HTTP ${res.status}`)
+  }
+  return res.json() as Promise<UserMe>
+}
+
 export async function apiFetch<T = unknown>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  auth: ApiAuthMode = 'infer'
 ): Promise<T> {
   const url = `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`
-  let token = getAccessToken()
+  let persona: ApiPersona | null =
+    auth === 'infer'
+      ? typeof window !== 'undefined'
+        ? getApiPersonaFromPathname(window.location.pathname)
+        : null
+      : auth === 'none'
+        ? null
+        : auth
+
+  let token = persona ? getAccessTokenForPersona(persona) : null
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string>),
@@ -42,9 +146,8 @@ export async function apiFetch<T = unknown>(
   }
   let res = await fetch(url, { ...options, headers })
 
-  // If 401, try refreshing the access token once then retry
-  if (res.status === 401 && !path.includes('/api/token/')) {
-    token = await refreshAccessToken()
+  if (res.status === 401 && !path.includes('/api/token/') && persona) {
+    token = await refreshAccessTokenForPersona(persona)
     if (token) {
       (headers as Record<string, string>)['Authorization'] = `Bearer ${token}`
       res = await fetch(url, { ...options, headers })
@@ -56,17 +159,45 @@ export async function apiFetch<T = unknown>(
     let message = body
     try {
       const j = JSON.parse(body) as Record<string, unknown>
-      if (j.detail) message = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail)
-      else if (j.cooperative) message = (j.cooperative as string[])[0] || body
+      if (j.detail) {
+        message = typeof j.detail === 'string' ? j.detail : JSON.stringify(j.detail)
+      } else if (Array.isArray(j.non_field_errors) && j.non_field_errors.length) {
+        const n = j.non_field_errors[0]
+        message = typeof n === 'string' ? n : String(n)
+      } else if (j.cooperative) message = (j.cooperative as string[])[0] || body
       else if (j.date) message = (j.date as string[])[0] || body
       else if (typeof j === 'object' && j !== null) {
-        const firstKey = Object.keys(j)[0]
-        const val = j[firstKey]
-        if (Array.isArray(val) && val[0]) message = String(val[0])
-        else if (typeof val === 'string') message = val
+        const priority = [
+          'phone_number',
+          'cooperative_id',
+          'cooperatives',
+          'invite_code',
+          'confirm_password',
+          'password',
+          'email',
+        ] as const
+        let picked = false
+        for (const key of priority) {
+          const val = j[key as string]
+          if (Array.isArray(val) && val[0] !== undefined && val[0] !== '') {
+            message = String(val[0])
+            picked = true
+            break
+          }
+          if (typeof val === 'string' && val) {
+            message = val
+            picked = true
+            break
+          }
+        }
+        if (!picked) {
+          const firstKey = Object.keys(j)[0]
+          const val = j[firstKey]
+          if (Array.isArray(val) && val[0]) message = String(val[0])
+          else if (typeof val === 'string') message = val
+        }
       }
     } catch {
-      // use body as-is only if it's not HTML
       if (body.trimStart().startsWith('<')) {
         message = res.status >= 500 ? 'Server error. Please try again.' : 'Request failed.'
       }
@@ -77,28 +208,6 @@ export async function apiFetch<T = unknown>(
   return res.json() as Promise<T>
 }
 
-export function setTokens(access: string, refresh: string): void {
-  localStorage.setItem('imena_access_token', access)
-  localStorage.setItem('imena_refresh_token', refresh)
-}
-
-export function clearTokens(): void {
-  localStorage.removeItem('imena_access_token')
-  localStorage.removeItem('imena_refresh_token')
-}
-
-export type TokenResponse = { access: string; refresh: string }
-export type UserMe = {
-  id: number
-  email: string
-  phone_number: string
-  role: string
-  is_superuser?: boolean
-  /** Django staff: cooperative admins need this to access dashboard data */
-  is_staff?: boolean
-  is_member_verified?: boolean
-  cooperative?: { id: number; name: string } | null
-}
 export type CooperativeMember = { id: number; email: string; is_verified: boolean }
 export type Cooperative = { id: number; name: string }
 export type CooperativeDetail = {
@@ -115,7 +224,6 @@ export async function getTotalIncome(): Promise<number> {
   return parseFloat(data.total_income) || 0
 }
 
-/** Income for a specific date (e.g. today). Use date=YYYY-MM-DD. */
 export async function getIncomeForDate(date: string): Promise<number> {
   const data = await apiFetch<{ total_income: string }>(`/api/income/summary/?date=${date}`)
   return parseFloat(data.total_income) || 0
@@ -130,7 +238,6 @@ export async function getTotalContributions(): Promise<number> {
   return typeof v === 'number' ? v : parseFloat(String(v ?? 0)) || 0
 }
 
-/** Contributions summary (total + verified amount). Admin uses verified_amount for stats. */
 export async function getContributionsSummary(): Promise<{
   total_amount: number
   verified_amount: number
@@ -173,7 +280,6 @@ export async function getIncomeStats(
   return data.data.map((d) => ({ period: d.period, total: parseFloat(d.total) || 0 }))
 }
 
-/** Contribution stats grouped by month or year (verified only for admin chart). */
 export async function getContributionStats(
   groupBy: 'month' | 'year',
   year?: number
@@ -201,7 +307,6 @@ export async function getRecentIncome(): Promise<IncomeRecordItem[]> {
   return Array.isArray(data) ? data : []
 }
 
-/** All income records for the current rider (payments to cooperative). */
 export async function getMyIncomeRecords(): Promise<IncomeRecordItem[]> {
   const data = await apiFetch<IncomeRecordItem[] | { results: IncomeRecordItem[] }>('/api/income/')
   if (Array.isArray(data)) return data
@@ -227,7 +332,6 @@ export async function getRecentContributions(): Promise<ContributionItem[]> {
   return Array.isArray(data) ? data : []
 }
 
-/** All contributions for the current rider. */
 export async function getMyContributions(): Promise<ContributionItem[]> {
   const data = await apiFetch<ContributionItem[] | { results: ContributionItem[] }>('/api/contributions/')
   if (Array.isArray(data)) return data
@@ -236,7 +340,6 @@ export async function getMyContributions(): Promise<ContributionItem[]> {
     : []
 }
 
-/** Verify a single contribution (admin). Only PENDING contributions can be verified. */
 export async function verifyContribution(contributionId: number): Promise<ContributionItem> {
   return apiFetch<ContributionItem>(`/api/contributions/${contributionId}/verify/`, {
     method: 'POST',
@@ -255,7 +358,6 @@ export async function getCooperatives(): Promise<Cooperative[]> {
   return Array.isArray(data) ? data : []
 }
 
-/** Public list for signup form - no auth required */
 export async function getCooperativesForSignup(): Promise<Cooperative[]> {
   const res = await fetch(`${API_BASE}/api/cooperatives/signup_choices/`)
   if (!res.ok) return []

@@ -20,7 +20,6 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-[#F5F7F6] flex flex-col items-center py-0 sm:py-8 sm:px-4">
-      {/* Language selector – top right (only visible on sm+) */}
       <div className="hidden sm:flex w-full max-w-sm justify-end mb-2">
         <button
           type="button"
@@ -33,11 +32,8 @@ export default function Landing() {
         </button>
       </div>
 
-      {/* Card — full-screen mobile, centered card on sm+ */}
       <main className="w-full sm:max-w-sm bg-white sm:rounded-2xl sm:shadow-soft overflow-hidden flex flex-col flex-1 sm:flex-none">
-        {/* Hero image */}
         <div className="relative w-full aspect-[4/5] sm:aspect-[3/2] max-h-[55vw] sm:max-h-56 bg-gray-200 overflow-hidden sm:rounded-t-2xl flex items-center justify-center">
-          {/* Language toggle overlaid on mobile */}
           <button
             type="button"
             onClick={toggleLanguage}

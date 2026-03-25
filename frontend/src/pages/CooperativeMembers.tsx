@@ -1,9 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import CenteredLayout from '@/components/CenteredLayout'
 import { useAuth } from '@/contexts/AuthContext'
-import { getCooperativeDetail, verifyMember, type CooperativeDetail, type CooperativeMember } from '@/lib/api'
+import {
+  getCooperativeDetail,
+  userMayAccessAdminDashboard,
+  verifyMember,
+  type CooperativeDetail,
+  type CooperativeMember,
+} from '@/lib/api'
 
 function BackArrowIcon() {
   return (
@@ -25,6 +31,7 @@ export default function CooperativeMembers() {
   const { id } = useParams<{ id: string }>()
   const { i18n } = useTranslation()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, loading: authLoading } = useAuth()
 
   const isCoopAdminPendingStaff = useMemo(() => {
@@ -39,10 +46,20 @@ export default function CooperativeMembers() {
     }
   }, [authLoading, isCoopAdminPendingStaff, navigate])
 
+  useEffect(() => {
+    if (authLoading) return
+    if (!user) {
+      navigate(`/login?next=${encodeURIComponent(location.pathname)}`, { replace: true })
+      return
+    }
+    if (!userMayAccessAdminDashboard(user)) {
+      navigate('/rider', { replace: true })
+    }
+  }, [authLoading, user, navigate, location.pathname])
+
   const [coop, setCoop] = useState<CooperativeDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  // Track per-member toggling state: memberId -> true while request in flight
   const [toggling, setToggling] = useState<Record<number, boolean>>({})
 
   useEffect(() => {
@@ -62,7 +79,6 @@ export default function CooperativeMembers() {
     setToggling((prev) => ({ ...prev, [member.id]: true }))
     try {
       const result = await verifyMember(Number(id), member.id)
-      // Update just that member's is_verified in local state — no full refetch needed
       setCoop((prev) => {
         if (!prev) return prev
         return {
@@ -73,7 +89,6 @@ export default function CooperativeMembers() {
         }
       })
     } catch {
-      // silently ignore — button will revert to its previous state automatically
     } finally {
       setToggling((prev) => ({ ...prev, [member.id]: false }))
     }
@@ -146,18 +161,15 @@ export default function CooperativeMembers() {
                 <ul className="space-y-3">
                   {coop.members.map((m, i) => (
                     <li key={m.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
-                      {/* Avatar */}
                       <div className="w-10 h-10 rounded-full bg-[#0F9D8A]/10 text-[#0F9D8A] flex items-center justify-center font-semibold text-sm shrink-0">
                         {m.email[0].toUpperCase()}
                       </div>
 
-                      {/* Info */}
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-gray-900 truncate">{m.email}</p>
                         <p className="text-xs text-gray-400 mt-0.5">#{i + 1} · Rider</p>
                       </div>
 
-                      {/* Verify toggle */}
                       <button
                         type="button"
                         disabled={toggling[m.id]}

@@ -13,6 +13,7 @@ import {
   getRecentIncome,
   getTotalIncome,
   unverifyContribution,
+  userMayAccessAdminDashboard,
   verifyContribution,
   type Cooperative,
   type CooperativeMember,
@@ -21,7 +22,6 @@ import {
   type IncomeRecordItem,
 } from '@/lib/api'
 
-/* ─── Icons ─── */
 function GlobeIcon() {
   return (
     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -56,20 +56,6 @@ function ClockIcon() {
     <img src="/unverified-icon.png" alt="" className="w-9 h-9 object-contain" aria-hidden />
   )
 }
-function PlusIcon() {
-  return (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-    </svg>
-  )
-}
-function ChevronRightIcon() {
-  return (
-    <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-    </svg>
-  )
-}
 function CheckIcon() {
   return (
     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
@@ -78,17 +64,8 @@ function CheckIcon() {
   )
 }
 
-/* ─── Types ─── */
 type FlatMember = CooperativeMember & { cooperativeId: number; cooperativeName: string }
 
-function initials(email: string) {
-  return email[0]?.toUpperCase() ?? '?'
-}
-
-const inputClass =
-  'w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50/50 focus:border-[#0F9D8A] focus:ring-2 focus:ring-[#0F9D8A]/20 focus:outline-none text-gray-900 placeholder-gray-400'
-
-/* ─── Stat card ─── */
 function StatCard({
   icon,
   iconBg,
@@ -113,7 +90,6 @@ function StatCard({
   )
 }
 
-/* ─── Component ─── */
 export default function AdminDashboard() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
@@ -134,10 +110,10 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (authLoading) return
     if (!isAuthenticated) {
-      navigate('/login', { replace: true })
+      navigate('/login?next=/admin', { replace: true })
       return
     }
-    if (user && user.role !== 'COOPERATIVE_ADMIN' && !user.is_superuser) {
+    if (user && !userMayAccessAdminDashboard(user)) {
       navigate('/rider', { replace: true })
     }
   }, [authLoading, isAuthenticated, user, navigate])
@@ -148,7 +124,6 @@ export default function AdminDashboard() {
   const [addError, setAddError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  // All members from all cooperatives, flattened for the members list
   const [allMembers, setAllMembers] = useState<FlatMember[]>([])
   const [membersLoading, setMembersLoading] = useState(true)
   const [totalIncome, setTotalIncome] = useState<number | null>(null)
@@ -171,7 +146,6 @@ export default function AdminDashboard() {
     }
   }, [])
 
-  // Load all members from every cooperative in parallel
   const loadAllMembers = useCallback(async (coops: Cooperative[]) => {
     if (coops.length === 0) { setAllMembers([]); setMembersLoading(false); return }
     setMembersLoading(true)
@@ -263,7 +237,6 @@ export default function AdminDashboard() {
       setPendingContributionsCount((prev) => Math.max(0, (prev ?? 0) - 1))
       await refetchRecent()
     } catch {
-      // ignore
     } finally {
       setVerifyingContributionId(null)
     }
@@ -282,7 +255,6 @@ export default function AdminDashboard() {
       setPendingContributionsCount((prev) => (prev ?? 0) + 1)
       await refetchRecent()
     } catch {
-      // ignore
     } finally {
       setUnverifyingContributionId(null)
     }
@@ -355,7 +327,6 @@ export default function AdminDashboard() {
 
   return (
     <CenteredLayout wide>
-      {/* ── Top nav bar ── */}
       <header className="bg-[#0F9D8A] px-4 sm:px-6 py-4 shrink-0">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -391,14 +362,11 @@ export default function AdminDashboard() {
         </div>
       </header>
 
-      {/* ── Main content ── */}
       <div className="flex-1 overflow-y-auto">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] min-h-full">
 
-          {/* ── Left / main column ── */}
           <main className="px-4 sm:px-6 py-6 space-y-8 border-b lg:border-b-0 lg:border-r border-gray-100">
 
-            {/* Stats */}
             <section>
               <h2 className="text-sm font-semibold text-[#0F9D8A] uppercase tracking-wide mb-3">
                 {t('admin.overview')}
@@ -446,7 +414,6 @@ export default function AdminDashboard() {
                 />
               </div>
 
-              {/* Recent income with notes/descriptions */}
               {recentIncome.length > 0 && (
                 <div className="mt-4 bg-white rounded-xl shadow-soft p-4">
                   <h3 className="text-xs font-semibold text-[#0F9D8A] uppercase tracking-wide mb-3">
@@ -475,7 +442,6 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {/* Recent contributions — amount, date, who made it, status, and Verify for PENDING */}
               {recentContributions.length > 0 && (
                 <div className="mt-4 bg-white rounded-xl shadow-soft p-4">
                   <h3 className="text-xs font-semibold text-[#0F9D8A] uppercase tracking-wide mb-3">
@@ -533,7 +499,6 @@ export default function AdminDashboard() {
               )}
             </section>
 
-            {/* Recent contributors — verified only: who, how much, when (disappears when unverified) */}
             <section>
               <h2 className="text-sm font-semibold text-[#0F9D8A] uppercase tracking-wide mb-3">
                 {t('admin.recentContributors', 'Recent Contributors')}
@@ -560,11 +525,9 @@ export default function AdminDashboard() {
               })()}
             </section>
 
-            {/* Progress chart — refetches when admin verifies so stats stay in sync */}
             <ProgressChart refreshTrigger={chartRefreshTrigger} />
           </main>
 
-          {/* ── Right / sidebar: Cooperative Riders ── */}
           <aside className="px-4 sm:px-6 py-6 space-y-6">
             <h2 className="text-sm font-semibold text-[#0F9D8A] uppercase tracking-wide">
               {t('admin.cooperativeRiders')}

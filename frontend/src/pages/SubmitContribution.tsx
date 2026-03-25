@@ -30,22 +30,26 @@ function formatDate(date: Date): string {
 
 export default function SubmitContribution() {
   const { t, i18n } = useTranslation()
-  const { user } = useAuth()
+  const { user, loading: authLoading, refreshUser } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const state = (location.state as { email?: string } | null) ?? {}
   const [cooperatives, setCooperatives] = useState<Cooperative[]>([])
-  const [loading, setLoading] = useState(true)
+  const [coopsLoading, setCoopsLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [amount, setAmount] = useState('')
-  const isVerifiedMember = user?.is_member_verified ?? true
+  const isVerifiedMember = Boolean(user?.is_member_verified)
+
+  useEffect(() => {
+    void refreshUser()
+  }, [refreshUser])
 
   useEffect(() => {
     getCooperatives()
       .then(setCooperatives)
       .catch(() => setCooperatives([]))
-      .finally(() => setLoading(false))
+      .finally(() => setCoopsLoading(false))
   }, [])
 
   const toggleLanguage = () => {
@@ -91,6 +95,16 @@ export default function SubmitContribution() {
     }
   }
 
+  if (authLoading || !user) {
+    return (
+      <CenteredLayout>
+        <div className="flex-1 flex items-center justify-center p-8 text-gray-600 text-sm">
+          {t('submitContribution.loading', 'Loading...')}
+        </div>
+      </CenteredLayout>
+    )
+  }
+
   return (
     <CenteredLayout>
       <header className="relative flex items-center justify-between px-4 sm:px-6 py-3 border-b border-gray-100 shrink-0">
@@ -127,7 +141,7 @@ export default function SubmitContribution() {
           </p>
         )}
 
-        {loading ? (
+        {coopsLoading ? (
           <p className="text-sm text-gray-500">{t('submitContribution.loading', 'Loading...')}</p>
         ) : (
           <form className="space-y-4" onSubmit={handleSubmit}>

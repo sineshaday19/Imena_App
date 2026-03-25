@@ -12,9 +12,9 @@ class ContributionTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.coop = Cooperative.objects.create(name='Test Coop')
-        self.rider = User.objects.create_user(username='+250788111111', phone_number='+250788111111', password='rider123', role=User.Role.RIDER)
+        self.rider = User.objects.create_user(username='0788111111', phone_number='0788111111', password='rider123', role=User.Role.RIDER)
         CooperativeMembership.objects.create(user=self.rider, cooperative=self.coop, is_verified=True)
-        self.admin_user = User.objects.create_user(username='admin@test.com', email='admin@test.com', phone_number='+250788222222', password='admin123', role=User.Role.COOPERATIVE_ADMIN, is_staff=True)
+        self.admin_user = User.objects.create_user(username='admin@test.com', email='admin@test.com', phone_number='0788222222', password='admin123', role=User.Role.COOPERATIVE_ADMIN, is_staff=True)
         self.coop.admins.add(self.admin_user)
 
     def _auth_rider(self):
@@ -74,8 +74,8 @@ class ContributionTests(TestCase):
         self.assertGreaterEqual(len(resp.data), 1)
 
     def test_rider_sees_only_own_contributions(self):
-        phone = '+250788333333'
-        other_rider = User.objects.create_user(username=phone, email=f"{phone.replace('+', '')}@t", phone_number=phone, password='x', role=User.Role.RIDER)
+        phone = '0788333333'
+        other_rider = User.objects.create_user(username=phone, email=f"{phone}@t", phone_number=phone, password='x', role=User.Role.RIDER)
         other_coop = Cooperative.objects.create(name='Other Coop')
         CooperativeMembership.objects.create(user=other_rider, cooperative=other_coop, is_verified=True)
         Contribution.objects.create(rider=other_rider, cooperative=other_coop, date=date.today(), amount=9999)
@@ -89,3 +89,36 @@ class ContributionTests(TestCase):
         other_contrib = Contribution.objects.get(rider=other_rider, amount=9999)
         self.assertIn(my_contrib.id, ids)
         self.assertNotIn(other_contrib.id, ids)
+
+    def test_rider_lists_own_contributions_even_if_membership_unverified(self):
+        """Unverifying a contribution must not hide rows via membership join; list is per rider."""
+        c = Contribution.objects.create(
+            rider=self.rider,
+            cooperative=self.coop,
+            date=date.today(),
+            amount=3000,
+            status=Contribution.Status.PENDING,
+        )
+        CooperativeMembership.objects.filter(user=self.rider).update(is_verified=False)
+        self._auth_rider()
+        resp = self.client.get('/api/contributions/')
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        results = resp.data.get('results', resp.data) if isinstance(resp.data, dict) else resp.data
+        ids = [row['id'] for row in results]
+        self.assertIn(c.id, ids)
+
+    def test_unverify_contribution_does_not_change_membership(self):
+        c = Contribution.objects.create(
+            rider=self.rider,
+            cooperative=self.coop,
+            date=date.today(),
+            amount=4000,
+            status=Contribution.Status.VERIFIED,
+        )
+        m = CooperativeMembership.objects.get(user=self.rider)
+        self.assertTrue(m.is_verified)
+        self._auth_admin()
+        resp = self.client.post('/api/contributions/{}/unverify/'.format(c.id))
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        m.refresh_from_db()
+        self.assertTrue(m.is_verified)

@@ -39,7 +39,7 @@ class ContributionViewSet(CreateModelMixin, viewsets.ReadOnlyModelViewSet):
         else:
             qs = Contribution.objects.none()
 
-        if not user.is_superuser:
+        if not user.is_superuser and not user.is_rider:
             qs = qs.filter(rider__cooperative_membership__is_verified=True)
 
         return qs.select_related("rider", "cooperative")

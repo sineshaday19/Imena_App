@@ -5,13 +5,26 @@ from django.test import SimpleTestCase
 from rest_framework.exceptions import ValidationError
 from apps.users.admin import UserAddForm
 from apps.users.jwt_auth import CustomTokenObtainPairSerializer
+from apps.users.admin_invite_constants import ADMIN_REGISTRATION_INVITE_CODE
+from apps.users.phone_utils import PHONE_DIGIT_COUNT, normalize_phone_number
 from apps.users.serializers import RegisterSerializer
-from apps.users.views import _registration_integrity_user_message
+from apps.users.views import _registration_integrity_detail_and_code, _registration_integrity_user_message
+
+
+class PhoneUtilsTests(SimpleTestCase):
+
+    def test_normalize_accepts_separators(self):
+        self.assertEqual(normalize_phone_number('(0) 78-123-45-67'), '0781234567')
+
+    def test_normalize_requires_exact_digit_count(self):
+        self.assertIsNone(normalize_phone_number('12345'))
+        self.assertIsNone(normalize_phone_number('1' * (PHONE_DIGIT_COUNT + 1)))
+
 
 class UserAddFormUnitTests(SimpleTestCase):
 
     def test_password_mismatch_sets_password2_error(self):
-        form = UserAddForm(data={'username': 'u1', 'email': 'u1@test.com', 'phone_number': '+250788000000', 'role': 'RIDER', 'password1': 'password123', 'password2': 'different123'})
+        form = UserAddForm(data={'username': 'u1', 'email': 'u1@test.com', 'phone_number': '0788000000', 'role': 'RIDER', 'password1': 'password123', 'password2': 'different123'})
         form.validate_unique = lambda : None
         self.assertFalse(form.is_valid())
         self.assertIn('password2', form.errors)
@@ -21,14 +34,14 @@ class RegisterSerializerUnitTests(SimpleTestCase):
     def test_register_password_mismatch_rejected(self):
         s = RegisterSerializer()
         with self.assertRaises(ValidationError):
-            s.validate({'phone_number': '+250788123456', 'password': 'validpass123', 'confirm_password': 'differentpass123', 'role': 'rider', 'cooperative_id': object()})
+            s.validate({'phone_number': '0788123456', 'password': 'validpass123', 'confirm_password': 'differentpass123', 'role': 'rider', 'cooperative_id': object()})
 
     @patch('apps.users.serializers.User.objects.filter')
     def test_validate_phone_number_duplicate_rejected(self, mock_filter):
         mock_filter.return_value.exists.return_value = True
         s = RegisterSerializer()
         with self.assertRaises(ValidationError):
-            s.validate_phone_number('+250788123456')
+            s.validate_phone_number('0788123456')
 
     @patch('apps.users.serializers.User.objects.filter')
     def test_validate_email_duplicate_rejected(self, mock_filter):
@@ -42,7 +55,7 @@ class RegisterSerializerUnitTests(SimpleTestCase):
         try:
             s = RegisterSerializer()
             with self.assertRaises(ValidationError):
-                s.validate({'email': 'admin@test.com', 'phone_number': '+250788123456', 'password': 'validpass123', 'confirm_password': 'validpass123', 'role': 'administrator', 'cooperatives': [object()], 'invite_code': 'anything'})
+                s.validate({'email': 'admin@test.com', 'phone_number': '0788123456', 'password': 'validpass123', 'confirm_password': 'validpass123', 'role': 'administrator', 'cooperatives': [object()], 'invite_code': 'anything'})
         finally:
             if old is not None:
                 os.environ['ADMIN_INVITE_CODE'] = old
@@ -53,7 +66,7 @@ class RegisterSerializerUnitTests(SimpleTestCase):
         try:
             s = RegisterSerializer()
             with self.assertRaises(ValidationError):
-                s.validate({'email': 'admin@test.com', 'phone_number': '+250788123456', 'password': 'validpass123', 'confirm_password': 'validpass123', 'role': 'administrator', 'cooperatives': [object()], 'invite_code': 'WRONG'})
+                s.validate({'email': 'admin@test.com', 'phone_number': '0788123456', 'password': 'validpass123', 'confirm_password': 'validpass123', 'role': 'administrator', 'cooperatives': [object()], 'invite_code': 'WRONG'})
         finally:
             if old is None:
                 os.environ.pop('ADMIN_INVITE_CODE', None)
@@ -63,7 +76,8 @@ class RegisterSerializerUnitTests(SimpleTestCase):
     @patch('apps.users.serializers.User.objects.filter')
     def test_register_rider_missing_cooperative_rejected(self, mock_filter):
         mock_filter.return_value.exists.return_value = False
-        s = RegisterSerializer(data={'phone_number': '+250788123456', 'password': 'validpass123', 'confirm_password': 'validpass123', 'role': 'rider'})
+        mock_filter.return_value.first.return_value = None
+        s = RegisterSerializer(data={'phone_number': '0788123456', 'password': 'validpass123', 'confirm_password': 'validpass123', 'role': 'rider'})
         self.assertFalse(s.is_valid())
         self.assertIn('cooperative_id', s.errors)
 
@@ -73,9 +87,12 @@ class RegistrationIntegrityMessageTests(SimpleTestCase):
         exc = IntegrityError('UNIQUE constraint failed: users_user.phone_number')
         self.assertIn('phone number', _registration_integrity_user_message(exc, 'rider').lower())
 
-    def test_unknown_constraint_uses_combined_message(self):
+    def test_unknown_constraint_does_not_claim_email_or_phone(self):
         exc = IntegrityError('unknown constraint violation')
-        self.assertIn('email or phone', _registration_integrity_user_message(exc, 'rider').lower())
+        detail, code = _registration_integrity_detail_and_code(exc, 'rider')
+        self.assertEqual(code, 'registration_conflict')
+        self.assertNotIn('email or phone', detail.lower())
+        self.assertIn('administrator', detail.lower())
 
 class JwtAuthUnitTests(SimpleTestCase):
 

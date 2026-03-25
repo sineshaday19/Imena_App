@@ -13,9 +13,9 @@ class ReportTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.coop = Cooperative.objects.create(name='Test Coop')
-        self.rider = User.objects.create_user(username='+250788111111', phone_number='+250788111111', password='rider123', role=User.Role.RIDER)
+        self.rider = User.objects.create_user(username='0788111111', phone_number='0788111111', password='rider123', role=User.Role.RIDER)
         CooperativeMembership.objects.create(user=self.rider, cooperative=self.coop, is_verified=True)
-        self.admin_user = User.objects.create_user(username='admin@test.com', email='admin@test.com', phone_number='+250788222222', password='admin123', role=User.Role.COOPERATIVE_ADMIN, is_staff=True)
+        self.admin_user = User.objects.create_user(username='admin@test.com', email='admin@test.com', phone_number='0788222222', password='admin123', role=User.Role.COOPERATIVE_ADMIN, is_staff=True)
         self.coop.admins.add(self.admin_user)
 
     def _auth_rider(self):

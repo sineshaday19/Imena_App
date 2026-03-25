@@ -1,7 +1,22 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
+import { normalizePhoneDigits } from '@/lib/phone'
+import { userMayAccessAdminDashboard, type UserMe } from '@/lib/api'
+
+function postLoginPath(me: UserMe, nextParam: string | null): string {
+  const raw = (nextParam || '').trim()
+  const pathOnly = (raw.split('?')[0] || '').trim()
+  if (pathOnly.startsWith('/admin') && userMayAccessAdminDashboard(me)) return pathOnly
+  if (
+    pathOnly.startsWith('/rider') &&
+    (me.role === 'RIDER' || me.is_superuser === true)
+  ) {
+    return pathOnly
+  }
+  return userMayAccessAdminDashboard(me) ? '/admin' : '/rider'
+}
 
 function GlobeIcon() {
   return (
@@ -22,6 +37,7 @@ function BackArrowIcon() {
 export default function Login() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { login } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -35,16 +51,13 @@ export default function Login() {
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Background image — translateZ(0) forces GPU layer so blur renders on mobile */}
       <img
         src="/woman-rider.png"
         alt=""
         className="absolute inset-0 w-full h-full object-cover blur-md [transform:translateZ(0)_scale(1.1)]"
       />
-      {/* Dark overlay */}
       <div className="absolute inset-0 bg-black/40" aria-hidden />
 
-      {/* Card — centered with padding so background shows on mobile and desktop */}
       <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-soft p-6 sm:p-8 mx-4 my-4 sm:my-0 max-h-[90vh] overflow-y-auto flex flex-col justify-center">
         <header className="relative flex items-center justify-between px-0 py-0 mb-4 -mt-1">
           <Link
@@ -80,13 +93,28 @@ export default function Login() {
             className="mt-6 space-y-4"
             onSubmit={async (e) => {
               e.preventDefault()
-              if (!email.trim() || !password.trim()) return
+              const idRaw = email.trim()
+              if (!idRaw || !password.trim()) return
               setError(null)
+              if (!idRaw.includes('@')) {
+                const digits = normalizePhoneDigits(idRaw)
+                if (!digits) {
+                  setError(
+                    t(
+                      'login.phoneDigits10',
+                      'Enter exactly 10 digits for your phone number, or use your email.'
+                    )
+                  )
+                  return
+                }
+              }
               setSubmitting(true)
               try {
-                const user = await login(email.trim(), password)
-                const isAdmin = user.role === 'COOPERATIVE_ADMIN'
-                navigate(isAdmin ? '/admin' : '/rider', { state: { email: user.email || user.phone_number } })
+                const user = await login(idRaw, password)
+                const dest = postLoginPath(user, searchParams.get('next'))
+                navigate(dest, {
+                  state: { email: user.email || user.phone_number },
+                })
               } catch (err) {
                 const raw = err instanceof Error ? err.message : ''
                 const lower = raw.toLowerCase()

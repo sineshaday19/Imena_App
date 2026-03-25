@@ -39,14 +39,13 @@ class IncomeRecordViewSet(CreateModelMixin, viewsets.ReadOnlyModelViewSet):
         else:
             qs = IncomeRecord.objects.none()
 
-        if not user.is_superuser:
+        if not user.is_superuser and not user.is_rider:
             qs = qs.filter(rider__cooperative_membership__is_verified=True)
 
         return qs.select_related("rider", "cooperative")
 
     @action(detail=False, methods=["get"], url_path="summary")
     def summary(self, request):
-        """Return total income visible to the current user. Optional query: date=YYYY-MM-DD for a single day."""
         qs = self.get_queryset()
         date_str = request.query_params.get("date")
         if date_str:

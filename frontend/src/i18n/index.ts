@@ -31,6 +31,7 @@ const resources = {
         signUp: 'Sign up',
         noActiveAccount: 'No active account found with the given credentials',
         loginFailed: 'Login failed',
+        phoneDigits10: 'Enter exactly 10 digits for your phone number, or use your email.',
       },
       signup: {
         back: 'Back',
@@ -43,7 +44,7 @@ const resources = {
         email: 'Email',
         emailPlaceholder: 'Enter your email',
         phone: 'Phone Number',
-        phonePlaceholder: 'Enter your phone number',
+        phonePlaceholder: '10 digits (any format you prefer)',
         roleLabel: 'I am a',
         roleRider: 'Rider',
         roleAdministrator: 'Administrator',
@@ -67,6 +68,7 @@ const resources = {
         errors: {
           emailRequired: 'Email is required',
           phoneRequired: 'Phone number is required',
+          phoneDigits10: 'Enter exactly 10 digits. Spaces or dashes are fine.',
           emailOrPhoneRequired: 'Please enter your email or phone number',
           passwordMin: 'Password must be at least 8 characters',
           passwordsMatch: 'Passwords do not match',
@@ -99,6 +101,7 @@ const resources = {
         noHistoryYet: 'No payments or contributions yet.',
         income: 'Income',
         contribution: 'Contribution',
+        contributionPending: 'Pending approval',
       },
       addIncome: {
         back: 'Back',
@@ -113,6 +116,11 @@ const resources = {
         optional: '(optional)',
         notesPlaceholder: 'Add any notes...',
         submit: 'Save Income',
+        errors: {
+          duplicateForDate:
+            'You already have an income record for this cooperative and date.',
+          saveFailed: 'Failed to save income.',
+        },
       },
       submitContribution: {
         back: 'Back',
@@ -203,6 +211,7 @@ const resources = {
         signUp: 'Iyandikishe',
         noActiveAccount: 'Nta konti yabonetse n\'amazina n\'ijambobanga watanze',
         loginFailed: 'Kwinjira nticyasohoye',
+        phoneDigits10: 'Injiza imibare 10 ku terefoni, cyangwa ukoreshe imeli.',
       },
       signup: {
         back: 'Garuka',
@@ -215,7 +224,7 @@ const resources = {
         email: 'Imeli',
         emailPlaceholder: 'Injiza imeli yawe',
         phone: 'Numero ya terefoni',
-        phonePlaceholder: 'Injiza numero ya terefoni',
+        phonePlaceholder: 'Imibare 10 (uburyo uhitamo)',
         emailOptional: 'Imeri (si itegeko)',
         emailPlaceholderOptional: 'Imeri (si itegeko)',
         roleLabel: 'Ndi',
@@ -239,6 +248,7 @@ const resources = {
         errors: {
           emailRequired: 'Imeli ni ngombwa',
           phoneRequired: 'Numero ya terefoni ni ngombwa',
+          phoneDigits10: 'Injiza imibare 10 gusa. Ushobora gukoresha ubuso cyangwa akabare.',
           emailOrPhoneRequired: 'Injiza imeli cyangwa numero ya terefoni',
           passwordMin: 'Ijambobanga rigomba kuba byibuze inyuguti 8',
           passwordsMatch: 'Amajambo y\'ibanga ntihuje',
@@ -275,6 +285,7 @@ const resources = {
         noHistoryYet: 'Nta bishyuwe cyangwa imisanzu biri kugeza ubu.',
         income: 'Amafaranga',
         contribution: 'Umusanzu',
+        contributionPending: 'Hategereje kwemezwa',
       },
       addIncome: {
         back: 'Garuka',
@@ -288,6 +299,11 @@ const resources = {
         optional: '(si itegeko)',
         notesPlaceholder: 'Ongeramo inyandiko...',
         submit: 'Bika amafaranga',
+        errors: {
+          duplicateForDate:
+            'Wamaze kwandika amafaranga y\'uyu munsi kuri iyi koperative.',
+          saveFailed: 'Ntibyashobotse kubika amafaranga.',
+        },
       },
       submitContribution: {
         back: 'Garuka',

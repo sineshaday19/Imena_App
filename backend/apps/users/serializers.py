@@ -1,3 +1,5 @@
+import os
+
 from django.db import transaction
 from rest_framework import serializers
 
@@ -5,9 +7,21 @@ from apps.cooperatives.models import Cooperative, CooperativeMembership
 
 from .admin_invite_constants import ADMIN_REGISTRATION_INVITE_CODE
 from .models import User
+from .phone_utils import describe_phone_rule, normalize_phone_number
+
+_LOGIN_USERNAME_MISMATCH = (
+    "This number is already used as the login (username) on another account, "
+    "but that account's phone field is different—often after editing in Django admin. "
+    "Ask a system administrator to open that user and align Username with Phone number."
+)
+
+# Matches frontend `signup.errors.emailOrPhoneAlreadyExists` default (English).
+REGISTRATION_DUPLICATE_CONTACT = "A user with this email or phone number already exists."
 
 
 class RegisterSerializer(serializers.ModelSerializer):
+    """Register a new user. Riders can use email or phone; admins require email. Riders must select a cooperative."""
+
     full_name = serializers.CharField(write_only=True, required=False, default="")
     password = serializers.CharField(write_only=True, min_length=8, style={"input_type": "password"})
     confirm_password = serializers.CharField(write_only=True, style={"input_type": "password"})
@@ -34,26 +48,47 @@ class RegisterSerializer(serializers.ModelSerializer):
         allow_blank=True,
         default="",
     )
-    phone_number = serializers.CharField(write_only=True, max_length=15)
+    phone_number = serializers.CharField(write_only=True, max_length=64)
 
     class Meta:
         model = User
-        fields = ["email", "phone_number", "password", "confirm_password", "full_name", "role", "cooperative_id", "cooperatives", "invite_code"]
+        fields = [
+            "email",
+            "phone_number",
+            "password",
+            "confirm_password",
+            "full_name",
+            "role",
+            "cooperative_id",
+            "cooperatives",
+            "invite_code",
+        ]
+
+    email = serializers.EmailField(
+        write_only=True,
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+    )
 
     def validate_email(self, value):
-        if not value or not value.strip():
+        if not value or not str(value).strip():
             return None
-        if User.objects.filter(email__iexact=value.strip()).exists():
-            raise serializers.ValidationError("A user with this email already exists.")
-        return value.strip().lower()
+        normalized = str(value).strip().lower()
+        if User.objects.filter(email__iexact=normalized).exists():
+            raise serializers.ValidationError(REGISTRATION_DUPLICATE_CONTACT)
+        return normalized
 
     def validate_phone_number(self, value):
         raw = (value or "").strip()
         if not raw:
             raise serializers.ValidationError("Phone number is required.")
-        if User.objects.filter(phone_number=raw).exists():
-            raise serializers.ValidationError("A user with this phone number already exists.")
-        return raw
+        normalized = normalize_phone_number(raw)
+        if not normalized:
+            raise serializers.ValidationError(describe_phone_rule())
+        if User.objects.filter(phone_number=normalized).exists():
+            raise serializers.ValidationError(REGISTRATION_DUPLICATE_CONTACT)
+        return normalized
 
     def validate(self, attrs):
         if attrs["password"] != attrs.pop("confirm_password"):
@@ -84,25 +119,25 @@ class RegisterSerializer(serializers.ModelSerializer):
                     {"cooperatives": "Administrators must select at least one cooperative."}
                 )
         if role_str == "administrator":
-            if attrs.get("invite_code", "") != ADMIN_REGISTRATION_INVITE_CODE:
+            expected = os.environ.get("ADMIN_INVITE_CODE", "").strip() or ADMIN_REGISTRATION_INVITE_CODE
+            if attrs.get("invite_code", "") != expected:
                 raise serializers.ValidationError(
                     {"invite_code": "Invalid invite code."}
                 )
 
         email_clean = (attrs.get("email") or "").strip()
         phone_clean = (attrs.get("phone_number") or "").strip()
-        proposed_username = email_clean.lower() if email_clean else phone_clean
-        existing_login = User.objects.filter(username=proposed_username).first()
-        if existing_login and existing_login.phone_number != phone_clean:
-            raise serializers.ValidationError(
-                {
-                    "phone_number": (
-                        "This number is already used as the login (username) on another account, "
-                        "but that account's phone field is different—often after editing in Django admin. "
-                        "Ask a system administrator to open that user and align Username with Phone number."
+        login_username = email_clean.lower() if email_clean else phone_clean
+        if login_username:
+            existing = User.objects.filter(username__iexact=login_username).first()
+            if existing:
+                existing_phone = (existing.phone_number or "").strip()
+                if existing_phone == phone_clean:
+                    raise serializers.ValidationError(
+                        {"phone_number": "A user with this phone number already exists."}
                     )
-                }
-            )
+                if existing_phone != phone_clean and (existing_phone or phone_clean):
+                    raise serializers.ValidationError({"phone_number": _LOGIN_USERNAME_MISMATCH})
 
         attrs.pop("invite_code", None)
         return attrs
@@ -117,12 +152,17 @@ class RegisterSerializer(serializers.ModelSerializer):
         parts = full_name.strip().split(None, 1)
         first_name = parts[0] if parts else ""
         last_name = parts[1] if len(parts) > 1 else ""
-        email = validated_data.get("email")
-        username = email or phone_number
+        raw_email = validated_data.get("email")
+        if raw_email is not None and not str(raw_email).strip():
+            raw_email = None
+        email = str(raw_email).strip().lower() if raw_email else None
+        if email and User.objects.filter(email__iexact=email).exists():
+            raise serializers.ValidationError({"email": REGISTRATION_DUPLICATE_CONTACT})
+        username = email if email else phone_number
         with transaction.atomic():
             user = User.objects.create_user(
                 username=username,
-                email=email or None,
+                email=email,
                 password=validated_data["password"],
                 first_name=first_name,
                 last_name=last_name,

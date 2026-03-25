@@ -3,7 +3,19 @@ import { MemoryRouter } from 'react-router-dom'
 import { vi } from 'vitest'
 import SubmitContribution from '../SubmitContribution'
 
-vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({}) }))
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({
+    user: {
+      id: 1,
+      email: '',
+      phone_number: '0123456789',
+      role: 'RIDER',
+      is_member_verified: true,
+    },
+    loading: false,
+    refreshUser: vi.fn(),
+  }),
+}))
 vi.mock('@/lib/api', () => ({
   apiFetch: vi.fn(),
   getCooperatives: vi.fn().mockResolvedValue([{ id: 1, name: 'Test Coop' }]),

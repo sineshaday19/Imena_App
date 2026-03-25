@@ -86,7 +86,7 @@ describe('SignUp', () => {
       target: { value: '' },
     })
     fireEvent.change(screen.getByLabelText('signup.phone'), {
-      target: { value: '+250780222001' },
+      target: { value: '0780222001' },
     })
     fireEvent.change(screen.getByLabelText('signup.cooperativeName'), {
       target: { value: '1' },

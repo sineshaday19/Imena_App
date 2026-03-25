@@ -5,6 +5,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from apps.cooperatives.models import Cooperative, CooperativeMembership
 
 from .models import User
+from .phone_utils import describe_phone_rule, normalize_phone_number
 
 
 class UserAddForm(forms.ModelForm):
@@ -37,6 +38,13 @@ class UserAddForm(forms.ModelForm):
             label="Password confirmation",
         )
 
+    def clean_phone_number(self):
+        val = self.cleaned_data.get("phone_number")
+        n = normalize_phone_number(val or "")
+        if not n:
+            raise forms.ValidationError(describe_phone_rule())
+        return n
+
     def clean(self):
         data = super().clean()
         if data.get("password1") != data.get("password2"):
@@ -57,6 +65,18 @@ class UserAdmin(BaseUserAdmin):
     list_display = (*BaseUserAdmin.list_display, "phone_number", "role")
     list_filter = (*BaseUserAdmin.list_filter, "role")
     search_fields = (*BaseUserAdmin.search_fields, "phone_number")
+
+    def get_search_results(self, request, queryset, search_term):
+        """Also match the same digits with an optional leading + (full string only, not a country rule)."""
+        qs, use_distinct = super().get_search_results(request, queryset, search_term)
+        st = (search_term or "").strip()
+        if st.startswith("+") and len(st) > 1 and st[1:].isdigit():
+            alt = st[1:]
+            qs2, _ = super().get_search_results(request, queryset, alt)
+            qs = (qs | qs2).distinct()
+            return qs, True
+        return qs, use_distinct
+
     fieldsets = BaseUserAdmin.fieldsets + (
         (None, {"fields": ("phone_number", "role")}),
     )

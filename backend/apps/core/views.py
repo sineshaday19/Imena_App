@@ -20,7 +20,7 @@ def _income_queryset(user):
     else:
         qs = IncomeRecord.objects.none()
 
-    if not user.is_superuser:
+    if not user.is_superuser and not user.is_rider:
         qs = qs.filter(rider__cooperative_membership__is_verified=True)
 
     return qs
@@ -37,7 +37,7 @@ def _contribution_queryset(user):
     else:
         qs = Contribution.objects.none()
 
-    if not user.is_superuser:
+    if not user.is_superuser and not user.is_rider:
         qs = qs.filter(rider__cooperative_membership__is_verified=True)
 
     return qs

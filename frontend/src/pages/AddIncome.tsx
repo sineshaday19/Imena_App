@@ -30,23 +30,27 @@ function formatDate(date: Date): string {
 
 export default function AddIncome() {
   const { t, i18n } = useTranslation()
-  const { user } = useAuth()
+  const { user, loading: authLoading, refreshUser } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const state = (location.state as { email?: string } | null) ?? {}
   const [cooperatives, setCooperatives] = useState<Cooperative[]>([])
-  const [loading, setLoading] = useState(true)
+  const [coopsLoading, setCoopsLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [amount, setAmount] = useState('')
   const [notes, setNotes] = useState('')
-  const isVerifiedMember = user?.is_member_verified ?? true
+  const isVerifiedMember = Boolean(user?.is_member_verified)
+
+  useEffect(() => {
+    void refreshUser()
+  }, [refreshUser])
 
   useEffect(() => {
     getCooperatives()
       .then(setCooperatives)
       .catch(() => setCooperatives([]))
-      .finally(() => setLoading(false))
+      .finally(() => setCoopsLoading(false))
   }, [])
 
   const toggleLanguage = () => {
@@ -87,10 +91,30 @@ export default function AddIncome() {
       })
       navigate('/rider', { state })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save income')
+      const raw = err instanceof Error ? err.message : ''
+      const lower = raw.toLowerCase()
+      let msg =
+        raw || t('addIncome.errors.saveFailed', 'Failed to save income.')
+      if (lower.includes('already have an income record')) {
+        msg = t(
+          'addIncome.errors.duplicateForDate',
+          'You already have an income record for this cooperative and date.'
+        )
+      }
+      setError(msg)
     } finally {
       setSubmitting(false)
     }
+  }
+
+  if (authLoading || !user) {
+    return (
+      <CenteredLayout>
+        <div className="flex-1 flex items-center justify-center p-8 text-gray-600 text-sm">
+          {t('addIncome.loading', 'Loading...')}
+        </div>
+      </CenteredLayout>
+    )
   }
 
   return (
@@ -129,7 +153,7 @@ export default function AddIncome() {
           </p>
         )}
 
-        {loading ? (
+        {coopsLoading ? (
           <p className="text-sm text-gray-500">{t('addIncome.loading', 'Loading...')}</p>
         ) : (
           <form className="space-y-4" onSubmit={handleSubmit}>

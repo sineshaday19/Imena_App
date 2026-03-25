@@ -12,7 +12,7 @@ class IncomeTests(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.coop = Cooperative.objects.create(name='Test Coop')
-        self.rider = User.objects.create_user(username='+250788111111', phone_number='+250788111111', password='rider123', role=User.Role.RIDER)
+        self.rider = User.objects.create_user(username='0788111111', phone_number='0788111111', password='rider123', role=User.Role.RIDER)
         CooperativeMembership.objects.create(user=self.rider, cooperative=self.coop, is_verified=True)
 
     def _auth_rider(self):
@@ -36,7 +36,7 @@ class IncomeTests(TestCase):
         self.assertTrue(total in ('8000', '8000.00'), f'Expected 8000, got {total}')
 
     def test_admin_cannot_create_income(self):
-        admin_user = User.objects.create_user(username='admin@test.com', email='admin@test.com', phone_number='+250788222222', password='admin123', role=User.Role.COOPERATIVE_ADMIN)
+        admin_user = User.objects.create_user(username='admin@test.com', email='admin@test.com', phone_number='0788222222', password='admin123', role=User.Role.COOPERATIVE_ADMIN)
         self.coop.admins.add(admin_user)
         refresh = RefreshToken.for_user(admin_user)
         self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + str(refresh.access_token))
@@ -74,7 +74,7 @@ class IncomeTests(TestCase):
 
     def test_coop_admin_without_staff_sees_no_income_list(self):
         IncomeRecord.objects.create(rider=self.rider, cooperative=self.coop, date=date(2026, 2, 27), amount=3000)
-        admin_user = User.objects.create_user(username='pending@admin.com', email='pending@admin.com', phone_number='+250788333333', password='admin123', role=User.Role.COOPERATIVE_ADMIN, is_staff=False)
+        admin_user = User.objects.create_user(username='pending@admin.com', email='pending@admin.com', phone_number='0788333333', password='admin123', role=User.Role.COOPERATIVE_ADMIN, is_staff=False)
         self.coop.admins.add(admin_user)
         refresh = RefreshToken.for_user(admin_user)
         self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + str(refresh.access_token))
@@ -84,7 +84,7 @@ class IncomeTests(TestCase):
 
     def test_coop_admin_with_staff_sees_coop_income(self):
         IncomeRecord.objects.create(rider=self.rider, cooperative=self.coop, date=date(2026, 2, 28), amount=4000)
-        admin_user = User.objects.create_user(username='staff@admin.com', email='staff@admin.com', phone_number='+250788444444', password='admin123', role=User.Role.COOPERATIVE_ADMIN, is_staff=True)
+        admin_user = User.objects.create_user(username='staff@admin.com', email='staff@admin.com', phone_number='0788444444', password='admin123', role=User.Role.COOPERATIVE_ADMIN, is_staff=True)
         self.coop.admins.add(admin_user)
         refresh = RefreshToken.for_user(admin_user)
         self.client.credentials(HTTP_AUTHORIZATION='Bearer ' + str(refresh.access_token))

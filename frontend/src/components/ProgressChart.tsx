@@ -15,7 +15,6 @@ import { getContributionStats, getIncomeStats, type StatPoint } from '@/lib/api'
 
 const BRAND = '#0F9D8A'
 const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
-// Full Kinyarwanda month names so the chart is clear (e.g. "Gashyantare" = February, not "Gas")
 const MONTHS_RW = ['Mutarama','Gashyantare','Werurwe','Mata','Gicuransi','Kamena','Nyakanga','Kanama','Nzeri','Ukuboza','Ugushyingo','Ukwa cumi na kabiri']
 
 function formatPeriodLabel(period: string, groupBy: 'month' | 'year', lang: string): string {
@@ -78,7 +77,6 @@ export default function ProgressChart({ refreshTrigger }: ProgressChartProps = {
 
   useEffect(() => { load() }, [load, refreshTrigger])
 
-  // Merge income + contribution by period for grouped bar chart
   const allPeriods = [...new Set([...incomeData.map((d) => d.period), ...contributionData.map((d) => d.period)])].sort()
   const chartData = allPeriods.map((period) => {
     const inc = incomeData.find((d) => d.period === period)
@@ -118,14 +116,12 @@ export default function ProgressChart({ refreshTrigger }: ProgressChartProps = {
 
   return (
     <section className="px-4 sm:px-6 py-6 border-t border-gray-100">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
           {t('chart.heading')}
         </h2>
 
         <div className="flex flex-wrap items-center gap-2">
-          {/* Monthly / Yearly toggle */}
           <div className="flex rounded-lg border border-gray-200 overflow-hidden text-xs font-medium">
             <button
               type="button"
@@ -151,7 +147,6 @@ export default function ProgressChart({ refreshTrigger }: ProgressChartProps = {
             </button>
           </div>
 
-          {/* Year picker — only shown in monthly mode */}
           {groupBy === 'month' && (
             <select
               value={year}
@@ -164,7 +159,6 @@ export default function ProgressChart({ refreshTrigger }: ProgressChartProps = {
             </select>
           )}
 
-          {/* Download PDF */}
           <button
             type="button"
             onClick={handleDownloadPDF}
@@ -176,7 +170,6 @@ export default function ProgressChart({ refreshTrigger }: ProgressChartProps = {
         </div>
       </div>
 
-      {/* Chart — Income + Contribution */}
       <div ref={chartRef} className="bg-white rounded-xl p-4">
         <p className="text-xs text-gray-400 mb-3">
           {groupBy === 'year' ? t('chart.titleYear') : `${t('chart.titleMonth')} ${year}`} — {t('chart.income')} & {t('chart.contribution', 'Contribution')}

@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import CenteredLayout from '@/components/CenteredLayout'
 import { useAuth } from '@/contexts/AuthContext'
-import { getIncomeForDate, getMyContributions, getMyIncomeRecords } from '@/lib/api'
+import { getIncomeForDate, getMyContributions } from '@/lib/api'
 
 function GlobeIcon() {
   return (
@@ -74,11 +74,11 @@ export default function RiderDashboard() {
   const { t, i18n } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
-  const { user, logout } = useAuth()
+  const { user, loading, logout, refreshUser } = useAuth()
   const identifier = (location.state as { email?: string } | null)?.email ?? user?.email ?? user?.phone_number ?? ''
   const name = displayName(identifier)
   const greetingName = name || (i18n.language === 'rw' ? 'Umumotari' : 'Rider')
-  const isVerifiedMember = user?.is_member_verified ?? true
+  const isVerifiedMember = user?.role === 'RIDER' ? user.is_member_verified !== false : Boolean(user?.is_member_verified)
 
   const toggleLanguage = () => {
     i18n.changeLanguage(i18n.language === 'en' ? 'rw' : 'en')
@@ -86,16 +86,10 @@ export default function RiderDashboard() {
 
   const [todaysIncome, setTodaysIncome] = useState<number | null>(null)
   const [totalContributions, setTotalContributions] = useState<number | null>(null)
-  const [incomeRecords, setIncomeRecords] = useState<Awaited<ReturnType<typeof getMyIncomeRecords>>>([])
   const [contributions, setContributions] = useState<Awaited<ReturnType<typeof getMyContributions>>>([])
 
   const loadSummary = useCallback(async () => {
-    // Unverified members see 0 income & contributions
-    if (!isVerifiedMember) {
-      setTodaysIncome(0)
-      setTotalContributions(0)
-      return
-    }
+    if (user?.role !== 'RIDER') return
     const today = new Date()
     const dateStr = today.toISOString().slice(0, 10)
     try {
@@ -105,7 +99,7 @@ export default function RiderDashboard() {
       ])
 
       const todaysContribTotal = contribs
-        .filter((c) => c.date.slice(0, 10) === dateStr)
+        .filter((c) => c.status === 'VERIFIED' && c.date.slice(0, 10) === dateStr)
         .reduce((sum, c) => sum + Number(c.amount || 0), 0)
 
       setTodaysIncome(income)
@@ -114,28 +108,41 @@ export default function RiderDashboard() {
       setTodaysIncome(0)
       setTotalContributions(0)
     }
-  }, [isVerifiedMember])
+  }, [user?.role])
 
   const loadHistory = useCallback(async () => {
-    if (!isVerifiedMember) {
-      setIncomeRecords([])
-      setContributions([])
-      return
-    }
+    if (user?.role !== 'RIDER') return
     try {
-      const [income, contribs] = await Promise.all([getMyIncomeRecords(), getMyContributions()])
-      setIncomeRecords(income)
-      setContributions(contribs)
+      setContributions(await getMyContributions())
     } catch {
-      setIncomeRecords([])
       setContributions([])
     }
-  }, [isVerifiedMember])
+  }, [user?.role])
 
   useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState === 'visible') void refreshUser()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    return () => document.removeEventListener('visibilitychange', onVis)
+  }, [refreshUser])
+
+  useEffect(() => {
+    if (loading) return
+    if (!user) {
+      navigate('/login?next=/rider', { replace: true })
+      return
+    }
+    if (user.role === 'COOPERATIVE_ADMIN' && user.is_superuser !== true) {
+      navigate('/admin', { replace: true })
+    }
+  }, [loading, user, navigate])
+
+  useEffect(() => {
+    if (loading || !user) return
     loadSummary()
     loadHistory()
-  }, [loadSummary, loadHistory])
+  }, [loading, user, loadSummary, loadHistory])
 
   const today = new Date()
   const dateFormatted =
@@ -156,6 +163,36 @@ export default function RiderDashboard() {
           month: 'long',
           day: 'numeric',
         })
+
+  if (loading) {
+    return (
+      <CenteredLayout>
+        <div className="flex-1 flex items-center justify-center p-8 text-gray-600 text-sm">
+          {t('rider.loading', 'Loading…')}
+        </div>
+      </CenteredLayout>
+    )
+  }
+
+  if (!user) {
+    return (
+      <CenteredLayout>
+        <div className="flex-1 flex items-center justify-center p-8 text-gray-600 text-sm">
+          {t('rider.loading', 'Loading…')}
+        </div>
+      </CenteredLayout>
+    )
+  }
+
+  if (user.role === 'COOPERATIVE_ADMIN' && user.is_superuser !== true) {
+    return (
+      <CenteredLayout>
+        <div className="flex-1 flex items-center justify-center p-8 text-gray-600 text-sm">
+          {t('rider.loading', 'Loading…')}
+        </div>
+      </CenteredLayout>
+    )
+  }
 
   return (
     <CenteredLayout>
@@ -193,7 +230,6 @@ export default function RiderDashboard() {
         </header>
 
       <main className="flex-1 px-4 sm:px-6 py-6 overflow-y-auto">
-        {/* Quick Actions */}
         <section className="mb-8">
           <h2 className="text-sm font-semibold text-[#0F9D8A] uppercase tracking-wide mb-3">
             {t('rider.quickActions')}
@@ -243,7 +279,6 @@ export default function RiderDashboard() {
           </div>
         </section>
 
-        {/* Your Summary */}
         <section>
           <h2 className="text-sm font-semibold text-[#0F9D8A] uppercase tracking-wide mb-3">
             {t('rider.yourSummary')}
@@ -270,38 +305,44 @@ export default function RiderDashboard() {
           </div>
         </section>
 
-        {/* Payment & Contribution History */}
         <section className="mt-8">
           <h2 className="text-sm font-semibold text-[#0F9D8A] uppercase tracking-wide mb-3">
             {t('rider.paymentHistory', 'Payment & contribution history')}
           </h2>
-          {contributions.filter((c) => c.status === 'VERIFIED').length === 0 ? (
+          {contributions.length === 0 ? (
             <p className="text-sm text-gray-500 italic py-4">{t('rider.noHistoryYet', 'No payments or contributions yet.')}</p>
           ) : (
             <div className="bg-white rounded-xl shadow-soft overflow-hidden">
               <div className="divide-y divide-gray-100 max-h-64 overflow-y-auto">
-                {contributions
-                  .filter((c) => c.status === 'VERIFIED')
+                {[...contributions]
                   .sort((a, b) => b.date.localeCompare(a.date))
-                  .map((c) => (
-                    <div
-                      key={`contrib-${c.id}`}
-                      className="flex items-center justify-between gap-3 px-4 py-3"
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {Number(c.amount).toLocaleString()} RWF
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {c.date}
-                          {c.cooperative?.name ? ` · ${c.cooperative.name}` : ''}
-                        </p>
+                  .map((c) => {
+                    const st = String(c.status).toUpperCase()
+                    const isVerified = st === 'VERIFIED'
+                    return (
+                      <div
+                        key={`contrib-${c.id}`}
+                        className="flex items-center justify-between gap-3 px-4 py-3"
+                      >
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">
+                            {Number(c.amount).toLocaleString()} RWF
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {c.date}
+                            {c.cooperative?.name ? ` · ${c.cooperative.name}` : ''}
+                          </p>
+                        </div>
+                        <span
+                          className={`text-xs font-medium shrink-0 ${isVerified ? 'text-purple-600' : 'text-amber-600'}`}
+                        >
+                          {isVerified
+                            ? t('rider.contribution', 'Contribution')
+                            : t('rider.contributionPending', 'Pending approval')}
+                        </span>
                       </div>
-                      <span className="text-xs font-medium text-purple-600 shrink-0">
-                        {t('rider.contribution', 'Contribution')}
-                      </span>
-                    </div>
-                  ))}
+                    )
+                  })}
               </div>
             </div>
           )}

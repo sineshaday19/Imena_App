@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { apiFetch, getCooperativesForSignup, type Cooperative } from '@/lib/api'
+import { normalizePhoneDigits } from '@/lib/phone'
 
 function GlobeIcon() {
   return (
@@ -40,6 +41,8 @@ export default function SignUp() {
   const [coopsLoading, setCoopsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const emailInputRef = useRef<HTMLInputElement>(null)
+  const phoneInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     getCooperativesForSignup()
@@ -55,14 +58,26 @@ export default function SignUp() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
-    const hasEmail = !!email.trim()
-    const hasPhone = !!phone.trim()
+    const emailRaw = (emailInputRef.current?.value ?? email).trim()
+    const phoneRaw = (phoneInputRef.current?.value ?? phone).trim()
+    const hasEmail = !!emailRaw
+    const hasPhone = !!phoneRaw
     if (role === 'administrator' && !hasEmail) {
       setError(t('signup.errors.emailRequired', 'Email is required'))
       return
     }
     if (!hasPhone) {
       setError(t('signup.errors.phoneRequired', 'Phone number is required'))
+      return
+    }
+    const phoneDigits = normalizePhoneDigits(phoneRaw)
+    if (!phoneDigits) {
+      setError(
+        t(
+          'signup.errors.phoneDigits10',
+          'Enter exactly 10 digits. Spaces or dashes are fine.'
+        )
+      )
       return
     }
     if (password.length < 8) {
@@ -90,8 +105,8 @@ export default function SignUp() {
       await apiFetch('/api/users/register/', {
         method: 'POST',
         body: JSON.stringify({
-          email: email.trim() || undefined,
-          phone_number: phone.trim() || undefined,
+          email: emailRaw || undefined,
+          phone_number: phoneDigits,
           password,
           confirm_password: confirmPassword,
           full_name: fullName.trim(),
@@ -104,30 +119,23 @@ export default function SignUp() {
     } catch (err) {
       const raw = err instanceof Error ? err.message : ''
       const lower = raw.toLowerCase()
-      let msg = t('signup.errors.registrationFailed', 'Registration failed')
-      const duplicateExists = lower.includes('already exists') || lower.includes('exist')
-      if (
-        duplicateExists &&
-        ((lower.includes('email') && lower.includes('phone')) || lower.includes('email or phone'))
-      ) {
-        msg = t(
-          'signup.errors.emailOrPhoneAlreadyExists',
-          'A user with this email or phone number already exists.'
-        )
-      } else if (duplicateExists && lower.includes('phone')) {
-        msg = t('signup.errors.phoneAlreadyExists', 'A user with this phone number already exists.')
-      } else if (duplicateExists && lower.includes('email')) {
-        msg = t('signup.errors.emailAlreadyExists', 'A user with this email already exists.')
-      } else if (lower.includes('server error') || lower.includes('please try again')) {
-        msg = t('signup.errors.serverError', 'Server error. Please try again.')
-      } else if (raw) {
+      let msg: string
+      if (raw) {
         msg = raw
+      } else {
+        msg = t('signup.errors.registrationFailed', 'Registration failed')
       }
       if (
-        role === 'rider' &&
-        !email.trim() &&
-        msg ===
-          t('signup.errors.emailAlreadyExists', 'A user with this email already exists.')
+        lower.includes('server error') ||
+        lower.includes('please try again') ||
+        lower === 'request failed.'
+      ) {
+        msg = t('signup.errors.serverError', 'Server error. Please try again.')
+      }
+      if (
+        lower.includes('email or phone number already exists') ||
+        lower.includes('this phone number already exists') ||
+        lower.includes('this email already exists')
       ) {
         msg = t(
           'signup.errors.emailOrPhoneAlreadyExists',
@@ -142,16 +150,13 @@ export default function SignUp() {
 
   return (
     <div className="relative min-h-screen flex flex-col items-center overflow-y-auto py-6 sm:py-8">
-      {/* Background image */}
       <img
         src="/woman-rider.png"
         alt=""
         className="fixed inset-0 w-full h-full object-cover blur-md scale-110 -z-10"
       />
-      {/* Dark overlay */}
       <div className="fixed inset-0 bg-black/40 -z-10" aria-hidden />
 
-      {/* Card — full height on mobile from top, centered on tablet+ */}
       <div className="relative z-10 w-full sm:max-w-md bg-white sm:rounded-2xl shadow-soft p-6 sm:p-8 mx-0 sm:mx-4 my-0 sm:my-auto sm:max-h-[90vh] overflow-y-auto flex flex-col min-h-0">
         <header className="relative flex items-center justify-between px-0 py-0 mb-4 -mt-1">
           <Link
@@ -208,9 +213,10 @@ export default function SignUp() {
                 {role === 'rider' ? t('signup.emailOptional') : t('signup.email')}
               </label>
               <input
+                ref={emailInputRef}
                 id="email"
                 type="email"
-                autoComplete="email"
+                autoComplete={role === 'rider' ? 'off' : 'email'}
                 placeholder={role === 'rider' ? t('signup.emailPlaceholderOptional') : t('signup.emailPlaceholder')}
                 className={inputClass}
                 value={email}
@@ -222,6 +228,7 @@ export default function SignUp() {
                 {t('signup.phone')}
               </label>
               <input
+                ref={phoneInputRef}
                 id="phone"
                 type="tel"
                 autoComplete="tel"
