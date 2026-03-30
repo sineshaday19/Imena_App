@@ -7,11 +7,15 @@ import AddIncome from './pages/AddIncome'
 import SubmitContribution from './pages/SubmitContribution'
 import AdminDashboard from './pages/AdminDashboard'
 import CooperativeMembers from './pages/CooperativeMembers'
+import PrivacyPolicy from './pages/PrivacyPolicy'
+import EndUserLicenseAgreement from './pages/EndUserLicenseAgreement'
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
+      <Route path="/privacy" element={<PrivacyPolicy />} />
+      <Route path="/eula" element={<EndUserLicenseAgreement />} />
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
       <Route path="/rider" element={<RiderDashboard />} />

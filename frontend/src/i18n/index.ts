@@ -13,6 +13,9 @@ const resources = {
         newToImena: 'New to Imena?',
         createAccount: 'Create an account',
         footer: '© 2026 Imena Cooperatives',
+        linkPrivacy: 'Privacy Policy',
+        linkEula: 'License agreement',
+        legalNavLabel: 'Legal information',
       },
       login: {
         back: 'Back',
@@ -191,6 +194,52 @@ const resources = {
         pendingStaffBody:
           'You can sign in, but cooperative data is hidden until a system administrator marks your account as staff in Django admin (Users → your account → Staff status). After that, refresh this page or log in again.',
       },
+      legal: {
+        backHome: 'Back to home',
+        language: 'Kinyarwanda',
+        navPrivacy: 'Privacy Policy',
+        navEula: 'End-User License Agreement',
+        privacyClosing: 'For terms of use, see the',
+        eulaClosing: 'For how we handle personal information, see the',
+        privacy: {
+          pageTitle: 'Privacy Policy',
+          subtitle: 'How Imena handles your information',
+          lastUpdated: 'Last updated: 30 March 2026',
+          intro:
+            'This policy explains, in plain language, what information the Imena application collects, why it is used, and how it is protected when you take part in a cooperative that uses the platform.',
+          s1Title: 'Data collection and purpose limitation',
+          s1Body:
+            'Imena collects details you give when you register and use your account (such as your name, contact information, and cooperative membership), and operational information you enter in the app (for example daily income and contribution records). We use this only to run the service, confirm membership, help cooperative administrators manage their groups, and meet legitimate operational needs. We do not use your personal data for unrelated purposes such as unsolicited marketing.',
+          s2Title: 'Data security and access control',
+          s2Body:
+            'We apply technical safeguards suited to the service—including secure connections and role-based access on our systems—and we limit who can see information according to their responsibilities. Administrative tools are available only to authorized users. You are responsible for keeping your password private and for activity that happens while you are signed in.',
+          s3Title: 'User-level data interaction',
+          s3Body:
+            'What you can view or change depends on your role. Riders typically see their own profile, income, contributions, and the cooperative context needed to use the app. Cooperative administrators can access member and cooperative information required to verify riders and run day-to-day operations, within the boundaries of the application. These limits help ensure each person interacts only with data that matches their role.',
+          s4Title: 'Usability and accessibility',
+          s4Body:
+            'We aim for a clear, practical experience on common phones and desktops, and the app supports English and Kinyarwanda where available. If something is hard to use or you need a reasonable adjustment, contact your cooperative administrator or the support channel your organization provides for Imena.',
+        },
+        eula: {
+          pageTitle: 'End-User License Agreement',
+          subtitle: 'Terms for using the Imena application',
+          lastUpdated: 'Last updated: 30 March 2026',
+          intro:
+            'By creating an account or using Imena, you agree to the terms below. If you do not agree, do not use the application.',
+          s1Title: 'Data collection and purpose limitation',
+          s1Body:
+            'You agree to provide accurate registration details and to use Imena only for lawful purposes related to your cooperative. Information you submit is processed as described in the Privacy Policy and solely to operate the platform and support your cooperative’s use of it—not for unrelated commercial exploitation beyond what is reasonably required to deliver the service.',
+          s2Title: 'Data security and access control',
+          s2Body:
+            'Imena is offered to authorized riders and administrators of participating cooperatives. You must not share your login credentials, attempt to bypass security or access controls, misuse data you can access, or interfere with other users or the platform. We maintain reasonable safeguards; you should tell your administrator promptly if you believe your account has been compromised.',
+          s3Title: 'User-level data interaction',
+          s3Body:
+            'Features and data visible to you depend on your assigned role (for example rider versus cooperative administrator). You may use information shown in the app only for legitimate cooperative participation or administrative duties. Misuse of access to others’ information may lead to suspension of your account, consistent with your cooperative’s rules and applicable law.',
+          s4Title: 'Usability and accessibility',
+          s4Body:
+            'We work to keep the application understandable and efficient to use. Design choices such as readable text and straightforward flows support usability and broader accessibility. If you encounter barriers, please report them so we can consider improvements in future releases.',
+        },
+      },
     },
   },
   rw: {
@@ -204,6 +253,9 @@ const resources = {
         newToImena: 'Umusanzu ku Imena?',
         createAccount: 'Fungura konti',
         footer: '© 2026 Imena Cooperatives',
+        linkPrivacy: 'Ubwishingizi bw\'amakuru',
+        linkEula: 'Amasezerano y\'ukoresha',
+        legalNavLabel: 'Amategeko n’amakuru',
       },
       login: {
         back: 'Garuka',
@@ -385,6 +437,52 @@ const resources = {
         pendingStaffTitle: 'Konti iteraje kwemezwa',
         pendingStaffBody:
           'Ushobora kwinjira, ariko amakuru ya koperative ntarenze kugeza umuyobozi wa sisitemu yanditse konti yawe nk’umukozi (Staff) muri Django admin. Nyuma unoze urupapuro cyangwa ongera winjire.',
+      },
+      legal: {
+        backHome: 'Garuka ahabanza',
+        language: 'English',
+        navPrivacy: 'Ubwishingizi bw\'amakuru',
+        navEula: 'Amasezerano y\'ukoresha',
+        privacyClosing: 'Ku masezerano y\'ukoresha, reba',
+        eulaClosing: 'Ku buryo dukoresha amakuru yawe bwite, reba',
+        privacy: {
+          pageTitle: 'Ubwishingizi bw\'amakuru',
+          subtitle: 'Uko Imena ikoresha no kurinda amakuru yawe',
+          lastUpdated: 'Byavuguruwe: 30 Werurwe 2026',
+          intro:
+            'Iyi nama isobanura mu magambo yoroshye uburyo porogaramu Imena ikusanya, ikoresha no kurinda amakuru igihe ukora muri koperative ikoresha iyi sisitemu.',
+          s1Title: 'Gukusanya amakuru no gukoresha ibyateganyijwe gusa',
+          s1Body:
+            'Imena ikusanya amakuru utanga igihe wandika konti no gukoresha sisitemu (nk’amazina, uburyo wagira, no kuba umu munyamuryango wa koperative), n’amakuru winjiza mu porogaramu (urugero amafaranga y’umunsi n’imisanzu). Dukoresha ibi gusa kugira ngo dutange serivisi, duemeze ubunyamuryango, dutabare abayobozi ba koperative, no gukora imirimo isanzwe. Ntdukoresha amakuru yawe bwite ku nzego zitari izo zateganyijwe, nk’amakuru y’ubucuruzi utasabye.',
+          s2Title: 'Umutekano w’amakuru no kugenzura uwinjira',
+          s2Body:
+            'Dukoresha uburyo bwo kurinda bikwiye serivisi—harimo guhuza mu buryo bwizewe no gukoresha uburenganzira ku sisitemu—kandi dugabanya abashobora kubona amakuru bitewe n’inshingano zabo. Ibikoresho by’ubuyobozi ni iby’abemewe gusa. Wihaye inshingano yo kubika ijambo ry’ibanga no gukoresha konti yawe igihe winjiye.',
+          s3Title: 'Uko ukoresha amakuru bitewe n’urwego rwawe',
+          s3Body:
+            'Ibyo ushobora kubona cyangwa guhindura biterwa n’urwego rwawe. Abamotari bisanzwe babona umwirondoro wabo, amafaranga, imisanzu, n’ibikenewe mu koperative mu gukoresha porogaramu. Abayobozi ba koperative bashobora kubona amakuru y’abanyamuryango n’aya koperative akenewe kugira ngo bemeze abamotari no gukora imirimo y’iminsi yose, mu rupapuro rwa porogaramu. Ibi bigufasha kugira ngo umuntu wese akore amakuru ahuye n’urwego rwe.',
+          s4Title: 'Gukoreshwa neza no kuboneka',
+          s4Body:
+            'Dushaka ko porogaramu irasobanutse kandi ikoreshwa neza ku terefoni no kuri mudasobwa bisanzwe, kandi dukoresha Icyongereza n’Ikinyarwanda aho bishoboka. Niba ikintu gikomeye gukoresha cyangwa ukeneye ubufasha, vugana n’umuyobozi wa koperative yawe cyangwa uwo wahamagara mu bufasha Imena.',
+        },
+        eula: {
+          pageTitle: 'Amasezerano y’ukoresha porogaramu',
+          subtitle: 'Amategeko yo gukoresha Imena',
+          lastUpdated: 'Byavuguruwe: 30 Werurwe 2026',
+          intro:
+            'Mu gihe ufungura konti cyangwa ukoresha Imena, wemera amategeko akurikira. Niba utabyemera, ntukoreshe porogaramu.',
+          s1Title: 'Gukusanya amakuru no gukoresha ibyateganyijwe gusa',
+          s1Body:
+            'Wemera gutanga amakuru y’iyandikwa ariyo kandi gukoresha Imena ku mpamvu zemewe zijyanye na koperative. Amakuru wohereza atunganywa nk’uko byanditswe mu nama y’ubwishingizi kandi gusa kugira ngo dukore serivisi no gutabara koperative—ntibikoreshwe ku bundi buryo butari bwo guha serivisi.',
+          s2Title: 'Umutekano w’amakuru no kugenzura uwinjira',
+          s2Body:
+            'Imena itangwa ku banyamuryango n’abayobozi bemewe ba koperative zifatanije. Ntugomba gutanga ijambo ry’ibanga, gushaka kunyura ku mutekano, gukoresha nabi amakuru ubonye, cyangwa gukoresha serivisi mu buryo bukomerera abandi. Dukomeje umutekano ukwiye; menyesha vuba umuyobozi niba ukeka ko konti yawe yinjijwe nabi.',
+          s3Title: 'Uko ukoresha amakuru bitewe n’urwego rwawe',
+          s3Body:
+            'Ibikorwa n’amakuru ubona biterwa n’urwego rwawe (urugero motari cyangwa umuyobozi wa koperative). Washobora gukoresha amakuru aboneka mu porogaramu ku mpamvu z’ukwiyunga muri koperative cyangwa imirimo y’ubuyobozi gusa. Gukoresha nabi ubufasha bwawe ku makuru y’abandi bishobora gutuma konti ihagarikwa, biteganyije n’amategeko ya koperative n’amategeko.',
+          s4Title: 'Gukoreshwa neza no kuboneka',
+          s4Body:
+            'Dukora kugira ngo porogaramu ibashe gukoreshwa neza no gusobanuka. Guhitamo imbonerahamwe nk’inyandiko isomwa neza no gukora ibintu byoroshye bitabara abakoresha bose. Niba uhura n’ingorane, tubwire kugira ngo tubishobore kunoza mu bihe bizaza.',
+        },
       },
     },
   },

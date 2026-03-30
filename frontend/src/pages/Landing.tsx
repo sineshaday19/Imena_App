@@ -81,8 +81,22 @@ export default function Landing() {
             </p>
           </div>
 
-          <footer className="mt-auto pt-8 text-center text-gray-400 text-xs">
-            {t('landing.footer')}
+          <footer className="mt-auto pt-8 text-center text-gray-400 text-xs space-y-3">
+            <nav
+              className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1"
+              aria-label={t('landing.legalNavLabel')}
+            >
+              <Link to="/privacy" className="text-[#0F9D8A] hover:underline">
+                {t('landing.linkPrivacy')}
+              </Link>
+              <span aria-hidden className="text-gray-300">
+                ·
+              </span>
+              <Link to="/eula" className="text-[#0F9D8A] hover:underline">
+                {t('landing.linkEula')}
+              </Link>
+            </nav>
+            <p>{t('landing.footer')}</p>
           </footer>
         </div>
       </main>
